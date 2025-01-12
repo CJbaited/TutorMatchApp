@@ -21,7 +21,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
         .single();
 
       if (!profile) {
-        navigation.navigate('ProfileSetup');
+        navigation.navigate('RoleSelection');
       } else {
         navigation.navigate('Home');
       }
@@ -142,11 +142,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
-    elevation: 5,
   },
   oauthIcon: {
     width: 30,
