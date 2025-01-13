@@ -1,4 +1,3 @@
-// filepath: /c:/Users/PC/Documents/TutorMatchApp/src/navigation/types.ts
 export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
@@ -10,5 +9,6 @@ export type RootStackParamList = {
   LocationSelection: { role: string; subject: string[]; area: string; format: string };
   FrequencySelection: { role: string; subject: string[]; area: string; format: string; location?: string };
   DurationSelection: { role: string; subject: string[]; area: string; format: string; location?: string; frequency: string };
-  Home: undefined;
+  RegistrationComplete: { role: string };
+  Home: { role: string };
 };

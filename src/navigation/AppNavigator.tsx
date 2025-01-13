@@ -1,4 +1,3 @@
-// filepath: /c:/Users/PC/Documents/TutorMatchApp/src/navigation/AppNavigator.tsx
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -12,6 +11,7 @@ import FormatSelectionScreen from '../screens/FormatSelectionScreen';
 import LocationSelectionScreen from '../screens/LocationSelectionScreen';
 import FrequencySelectionScreen from '../screens/FrequencySelectionScreen';
 import DurationSelectionScreen from '../screens/DurationSelectionScreen';
+import RegistrationCompleteScreen from '../screens/RegistrationCompleteScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +28,7 @@ const AppNavigator = () => {
       <Stack.Screen name="LocationSelection" component={LocationSelectionScreen} />
       <Stack.Screen name="FrequencySelection" component={FrequencySelectionScreen} />
       <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
+      <Stack.Screen name="RegistrationComplete" component={RegistrationCompleteScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
     </Stack.Navigator>
   );
