@@ -12,6 +12,7 @@ import LocationSelectionScreen from '../screens/LocationSelectionScreen';
 import FrequencySelectionScreen from '../screens/FrequencySelectionScreen';
 import DurationSelectionScreen from '../screens/DurationSelectionScreen';
 import RegistrationCompleteScreen from '../screens/RegistrationCompleteScreen';
+import BottomTabNavigator from './BottomTabNavigator';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,7 +30,7 @@ const AppNavigator = () => {
       <Stack.Screen name="FrequencySelection" component={FrequencySelectionScreen} />
       <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
       <Stack.Screen name="RegistrationComplete" component={RegistrationCompleteScreen} />
-      <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="Home" component={BottomTabNavigator} />
     </Stack.Navigator>
   );
 };
