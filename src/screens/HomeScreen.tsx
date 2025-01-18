@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, Platform } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
@@ -46,7 +47,8 @@ const HomeScreen = () => {
   if (loading) {
     return (
       <SkeletonPlaceholder>
-        <View style={styles.skeletonContainer}>
+        <View style={styles.container}>
+        <LinearGradient colors={['#4c669f', '#3b5998', '#192f6a']} style={styles.skeletonContainer} />
           <View style={styles.skeletonTitle} />
           <View style={styles.skeletonSubtitle} />
           <View style={styles.skeletonContent} />
@@ -305,7 +307,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    //paddingTop: Platform.OS === 'ios' ? 80 : 20, // Adjust for dynamic island on iPhones
+    paddingTop: Platform.OS === 'ios' ? 80 : 20, // Adjust for dynamic island on iPhones
   },
   skeletonTitle: {
     width: 200,
