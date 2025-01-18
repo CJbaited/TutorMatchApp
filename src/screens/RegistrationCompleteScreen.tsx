@@ -22,11 +22,11 @@ const RegistrationCompleteScreen = () => {
   return (
     <Animatable.View animation="fadeIn" style={styles.container}>
       <Text style={styles.title}>Registration Complete</Text>
-      <Image source={require('../../assets/3d-graphic.png')} style={styles.image} />
+      
     </Animatable.View>
   );
 };
-
+//<Image source={require('../../assets/3d-graphic.png')} style={styles.image} />
 const styles = StyleSheet.create({
   container: {
     flex: 1,

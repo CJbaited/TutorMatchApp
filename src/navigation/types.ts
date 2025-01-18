@@ -11,4 +11,5 @@ export type RootStackParamList = {
   DurationSelection: { role: string; subject: string[]; area: string; format: string; location?: string; frequency: string };
   RegistrationComplete: { role: string };
   Home: { role: string };
+  DevHome: undefined;
 };

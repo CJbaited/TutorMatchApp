@@ -16,9 +16,9 @@ import BottomTabNavigator from './BottomTabNavigator';
 
 const Stack = createNativeStackNavigator();
 
-const AppNavigator = () => {
+const AppNavigator = ({ initialRouteName = "Welcome" }) => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator initialRouteName={initialRouteName}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />
@@ -31,6 +31,13 @@ const AppNavigator = () => {
       <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
       <Stack.Screen name="RegistrationComplete" component={RegistrationCompleteScreen} />
       <Stack.Screen name="Home" component={BottomTabNavigator} />
+      {/* Direct route to HomeScreen for development */}
+      <Stack.Screen
+        name="DevHome"
+        component={HomeScreen}
+        initialParams={{ role: 'student' }}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 };
