@@ -516,11 +516,11 @@ const styles = StyleSheet.create({
   },
   drawerContent: {
     width: '100%',
-    height: '80%', // Adjust this value to control the height of the drawer
+    height: '90%', // Adjust this value to control the height of the drawer
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 20,
+    paddingTop: 48,
     paddingHorizontal: 20,
     alignItems: 'center',
   },
