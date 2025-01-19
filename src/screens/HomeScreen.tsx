@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, Platform, Animated } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, Platform, Animated, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { SlidersHorizontal, Star } from 'lucide-react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
+import LinearGradient from 'react-native-linear-gradient';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { RootStackParamList } from '../navigation/types';
 import { commonStyles, colors } from '../theme/Theme';
@@ -18,24 +19,84 @@ const HomeScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [openDropdown, setOpenDropdown] = useState({});
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 150],
+    outputRange: [240, 70],
+    extrapolate: 'clamp',
+  });
+
+  const titleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const buttonTranslateX = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [0, -32], // Move left when scrolled
+    extrapolate: 'clamp',
+  });
+
+  const buttonTranslateY = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [0, -53], // Move up when scrolled
+    extrapolate: 'clamp',
+  });
+
+  const buttonScale = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [.9, .8],
+    extrapolate: 'clamp',
+  });
+  const buttonSize = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0.7],
+    extrapolate: 'clamp',
+  });
+
+  const buttonPosition = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [0, -30],
+    extrapolate: 'clamp',
+  });
+
+    // NEW animation for 3 buttons alignment
+    const buttonsMarginLeft = scrollY.interpolate({
+      inputRange: [0, 50],
+      outputRange: ['0', '20'], // Change alignment
+      extrapolate: 'clamp',
+    });
+
+  const dummyTutors = [
+    { id: 1, name: 'John Doe', subject: 'Physics', rating: 4.5, price: 30, image: 'https://placeimg.com/100/100/people' },
+    { id: 2, name: 'Jane Smith', subject: 'English', rating: 4.9, price: 40, image: 'https://placeimg.com/101/101/people' },
+    { id: 3, name: 'David Chen', subject: 'Math', rating: 4.8, price: 35, image: 'https://placeimg.com/102/102/people' },
+    { id: 4, name: 'Emily Johnson', subject: 'Chemistry', rating: 4.3, price: 28, image: 'https://placeimg.com/103/103/people' },
+    { id: 5, name: 'Michael Lee', subject: 'History', rating: 4.6, price: 32, image: 'https://placeimg.com/105/105/people' },
+    { id: 6, name: 'Sara Williams', subject: 'Biology', rating: 4.7, price: 37, image: 'https://placeimg.com/104/104/people' },
+    { id: 7, name: 'Alex Brown', subject: 'Literature', rating: 4.2, price: 25, image: 'https://placeimg.com/106/106/people' },
+    { id: 8, name: 'Lisa Miller', subject: 'Geography', rating: 4.8, price: 39, image: 'https://placeimg.com/107/107/people' },
+  ];
 
   useEffect(() => {
-    // Simulate a network request to fetch user data
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 2000); // 2 seconds delay
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
-    Animated.sequence([
-      Animated.delay(600),
+  useEffect(() => {
+    if (!loading) {
+      fadeAnim.setValue(0);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
         useNativeDriver: true,
-      }),
-    ]).start();
-
-    return () => clearTimeout(timer);
-  }, []);
+      }).start();
+    }
+  }, [loading]);
 
   const handleConfirmFilter = () => {
     setModalVisible(false);
@@ -71,39 +132,112 @@ const HomeScreen = () => {
   }
 
   return (
-    <View style={{ flex: 1, paddingTop: 35, paddingHorizontal: 20, backgroundColor: '#e0f7fa' }}>
+    <SafeAreaView style={{ flex: 1, paddingTop: -4, paddingHorizontal: 20, backgroundColor: '#e0f7fa' }}>
       {/* Glass-like container */}
       <View style={[styles.glassContainer, { flex: 1 }]}>
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-          <TouchableOpacity style={{ width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.secondary }} onPress={() => setModalVisible(true)}>
-            <Ionicons name="filter" size={24} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: fadeAnim }] }}>
-          <Text style={styles.gradientTitle}>Welcome,</Text>
-          <Text style={styles.gradientSubtitle}>Student</Text>
+        <Animated.View style={{ height: headerHeight, justifyContent: 'center', paddingHorizontal: 4, marginHorizontal: -10 }}>
+          {/* Top top part: filter button */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'absolute', right: 10, top: 10 }}>
+            <TouchableOpacity style={{ width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.secondary }} onPress={() => setModalVisible(true)}>
+              <SlidersHorizontal size={24} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          {/* Top middle part: title and subtitle */}
+          <Animated.View style={{ opacity: titleOpacity, marginTop: 60 , marginLeft: 10 }}>
+            <Text style={styles.gradientTitle}>Welcome,</Text>
+            <Text style={styles.gradientSubtitle}>Student</Text>
+          </Animated.View>
+          <Animated.View style={{ opacity: titleOpacity, marginBottom: 5, marginLeft: 10 }}>
+            <Text style={{ fontSize: 14, color: colors.textPrimary, textAlign: 'left' }}>Here are your recommended tutors:</Text>
+          </Animated.View>
+          {/* Top bottom part: 3 filter buttons */}
+          <Animated.View 
+            style={{ 
+              flexDirection: 'row',
+              justifyContent: 'center',
+              position: 'static',
+              marginBottom: -10,
+              //right: 70, // Space for filter button
+              transform: [
+                { translateX: buttonTranslateX },
+                { translateY: buttonTranslateY },
+                { scale: buttonScale }
+              ],
+              // Add this to control overall position
+              top: scrollY.interpolate({
+                inputRange: [0, 50],
+                outputRange: [200, 50], // Adjust these values to match header height
+                extrapolate: 'clamp'
+              })
+            }}
+          >
+            <TouchableOpacity 
+              style={[
+                commonStyles.button, 
+                filter === 'New' && { backgroundColor: colors.primary },
+                { marginHorizontal: 2 } // Add spacing between buttons
+              ]} 
+              onPress={() => setFilter('New')}
+            >
+              <Text style={[commonStyles.buttonText, filter === 'New' && { color: colors.buttonText }]}>
+                New
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[
+                commonStyles.button, 
+                filter === 'Popular' && { backgroundColor: colors.primary },
+                { marginHorizontal: 2 } // Add spacing between buttons
+              ]} 
+              onPress={() => setFilter('Popular')}
+            >
+              <Text style={[commonStyles.buttonText, filter === 'Popular' && { color: colors.buttonText }]}>
+                Popular
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[
+                commonStyles.button, 
+                filter === 'Best Rated' && { backgroundColor: colors.primary },
+                { marginHorizontal: 2 } // Add spacing between buttons
+              ]} 
+              onPress={() => setFilter('Best Rated')}
+            >
+              <Text style={[commonStyles.buttonText, filter === 'Best Rated' && { color: colors.buttonText }]}>
+                Best Rated
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
-        <Text style={{ fontSize: 14, color: colors.textPrimary, marginBottom: 20, textAlign: 'left' }}>Here are your recommended tutors:</Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20 }}>
-          <TouchableOpacity style={[commonStyles.button, filter === 'New' && { backgroundColor: colors.primary }]} onPress={() => setFilter('New')}>
-            <Text style={[commonStyles.buttonText, filter === 'New' && { color: colors.buttonText }]}>New</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[commonStyles.button, filter === 'Popular' && { backgroundColor: colors.primary }]} onPress={() => setFilter('Popular')}>
-            <Text style={[commonStyles.buttonText, filter === 'Popular' && { color: colors.buttonText }]}>Popular</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[commonStyles.button, filter === 'Best Rated' && { backgroundColor: colors.primary }]} onPress={() => setFilter('Best Rated')}>
-            <Text style={[commonStyles.buttonText, filter === 'Best Rated' && { color: colors.buttonText }]}>Best Rated</Text>
-          </TouchableOpacity>
-        </View>
-        <Animated.View style={[commonStyles.teachersContainer, { opacity: fadeAnim }]}>
-          {['Teacher 1', 'Teacher 2', 'Teacher 3', 'Teacher 4', 'Teacher 5', 'Teacher 6'].map((teacher, index) => (
-            <View key={index} style={commonStyles.card}>
-              <Text style={commonStyles.cardTitle}>{teacher}</Text>
-              <Text style={commonStyles.cardText}>Subject</Text>
-              <Text style={commonStyles.cardText}>Location</Text>
-            </View>
-          ))}
-        </Animated.View>
+        <ScrollView
+          style={{ flex: 1, marginTop: 5 , marginHorizontal: -12 }}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+        >
+          <Animated.View style={[commonStyles.teachersContainer, { opacity: fadeAnim }]}>
+            {dummyTutors.map((tutor) => (
+              <View key={tutor.id} style={[commonStyles.card, { width: '45%', margin: 4}]}>
+                <Image
+                  source={{ uri: tutor.image }}
+                  style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 10 }}
+                />
+                <Text style={commonStyles.cardTitle}>{tutor.name}</Text>
+                <Text style={commonStyles.cardText}>{tutor.subject}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Star size={16} color={colors.primary} />
+                  <Text style={commonStyles.cardText}> {tutor.rating}</Text>
+                </View>
+                <Text style={commonStyles.cardText}>${tutor.price}/hr</Text>
+              </View>
+            ))}
+          </Animated.View>
+        </ScrollView>
 
         <Modal
           animationType="slide"
@@ -200,7 +334,7 @@ const HomeScreen = () => {
           </View>
         </Modal>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -362,6 +496,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#00796B',
     marginBottom: 10,
+  },
+  titleContainer: {
+    marginTop: 80,
+    alignItems: 'flex-start',
+  },
+  filterButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
   },
 });
 
