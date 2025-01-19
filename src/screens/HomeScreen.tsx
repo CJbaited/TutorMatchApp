@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, Platform, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { RootStackParamList } from '../navigation/types';
+import { commonStyles, colors } from '../theme/Theme';
 
 type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Home' | 'DevHome'>;
 
@@ -16,12 +17,22 @@ const HomeScreen = () => {
   const [filter, setFilter] = useState('New');
   const [modalVisible, setModalVisible] = useState(false);
   const [openDropdown, setOpenDropdown] = useState({});
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Simulate a network request to fetch user data
     const timer = setTimeout(() => {
       setLoading(false);
     }, 2000); // 2 seconds delay
+
+    Animated.sequence([
+      Animated.delay(600),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     return () => clearTimeout(timer);
   }, []);
@@ -60,134 +71,135 @@ const HomeScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.circleButton} onPress={() => setModalVisible(true)}>
-          <Ionicons name="filter" size={24} color="#4CAF50" />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.topContainer}>
-        <Text style={styles.title}>Welcome,</Text>
-        <Text style={styles.name}>Student</Text>
-      </View>
-      <Text style={styles.subtitle}>Here are your recommended tutors:</Text>
-      <View style={styles.buttonGroup}>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'New' && styles.selectedButton]}
-          onPress={() => setFilter('New')}
-        >
-          <Text style={[styles.filterButtonText, filter === 'New' && styles.selectedButtonText]}>New</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'Popular' && styles.selectedButton]}
-          onPress={() => setFilter('Popular')}
-        >
-          <Text style={[styles.filterButtonText, filter === 'Popular' && styles.selectedButtonText]}>Popular</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'Best Rated' && styles.selectedButton]}
-          onPress={() => setFilter('Best Rated')}
-        >
-          <Text style={[styles.filterButtonText, filter === 'Best Rated' && styles.selectedButtonText]}>Best Rated</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Add components to display tutors based on criteria and filter */}
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <ScrollView contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.filtersContainer}>
-                <Text style={styles.filterTitle}>Subject</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {['Math', 'Science', 'English'].map((subject) => (
-                    <TouchableOpacity key={subject} style={styles.filterButton}>
-                      <Text style={styles.filterButtonText}>{subject}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <Text style={styles.filterTitle}>Area</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {['Algebra', 'Geometry', 'Literature'].length > 5 ? (
-                    <DropDownPicker
-                      open={openDropdown['Area']}
-                      value={null}
-                      items={['Algebra', 'Geometry', 'Literature'].map((area) => ({ label: area, value: area }))}
-                      setOpen={() => toggleDropdown('Area')}
-                      setValue={() => {}}
-                      setItems={() => {}}
-                      containerStyle={{ width: '100%' }}
-                      style={{ borderColor: '#4CAF50', backgroundColor: '#E8F5E9' }}
-                      dropDownContainerStyle={{ backgroundColor: '#E8F5E9' }}
-                    />
-                  ) : (
-                    ['Algebra', 'Geometry', 'Literature'].map((area) => (
-                      <TouchableOpacity key={area} style={styles.filterButton}>
-                        <Text style={styles.filterButtonText}>{area}</Text>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
-                <Text style={styles.filterTitle}>Location</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {['Taipei', 'Taichung', 'Kaohsiung'].length > 5 ? (
-                    <DropDownPicker
-                      open={openDropdown['Location']}
-                      value={null}
-                      items={['Taipei', 'Taichung', 'Kaohsiung'].map((location) => ({ label: location, value: location }))}
-                      setOpen={() => toggleDropdown('Location')}
-                      setValue={() => {}}
-                      setItems={() => {}}
-                      containerStyle={{ width: '100%' }}
-                      style={{ borderColor: '#4CAF50', backgroundColor: '#E8F5E9' }}
-                      dropDownContainerStyle={{ backgroundColor: '#E8F5E9' }}
-                    />
-                  ) : (
-                    ['Taipei', 'Taichung', 'Kaohsiung'].map((location) => (
-                      <TouchableOpacity key={location} style={styles.filterButton}>
-                        <Text style={styles.filterButtonText}>{location}</Text>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
-                <Text style={styles.filterTitle}>Format</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {['Online', 'Face to Face', 'Hybrid'].map((format) => (
-                    <TouchableOpacity key={format} style={styles.filterButton}>
-                      <Text style={styles.filterButtonText}>{format}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <Text style={styles.filterTitle}>Frequency</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {['1x a week', '2x a week', '3x a week'].map((frequency) => (
-                    <TouchableOpacity key={frequency} style={styles.filterButton}>
-                      <Text style={styles.filterButtonText}>{frequency}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <Text style={styles.filterTitle}>Duration</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {['30 minutes', '1 hour', '1.5 hours'].map((duration) => (
-                    <TouchableOpacity key={duration} style={styles.filterButton}>
-                      <Text style={styles.filterButtonText}>{duration}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </ScrollView>
-            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmFilter}>
-              <Text style={styles.confirmButtonText}>Confirm</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={{ flex: 1, paddingTop: 35, paddingHorizontal: 20, backgroundColor: '#e0f7fa' }}>
+      {/* Glass-like container */}
+      <View style={[styles.glassContainer, { flex: 1 }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.secondary }} onPress={() => setModalVisible(true)}>
+            <Ionicons name="filter" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
-      </Modal>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: fadeAnim }] }}>
+          <Text style={styles.gradientTitle}>Welcome,</Text>
+          <Text style={styles.gradientSubtitle}>Student</Text>
+        </Animated.View>
+        <Text style={{ fontSize: 14, color: colors.textPrimary, marginBottom: 20, textAlign: 'left' }}>Here are your recommended tutors:</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20 }}>
+          <TouchableOpacity style={[commonStyles.button, filter === 'New' && { backgroundColor: colors.primary }]} onPress={() => setFilter('New')}>
+            <Text style={[commonStyles.buttonText, filter === 'New' && { color: colors.buttonText }]}>New</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[commonStyles.button, filter === 'Popular' && { backgroundColor: colors.primary }]} onPress={() => setFilter('Popular')}>
+            <Text style={[commonStyles.buttonText, filter === 'Popular' && { color: colors.buttonText }]}>Popular</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[commonStyles.button, filter === 'Best Rated' && { backgroundColor: colors.primary }]} onPress={() => setFilter('Best Rated')}>
+            <Text style={[commonStyles.buttonText, filter === 'Best Rated' && { color: colors.buttonText }]}>Best Rated</Text>
+          </TouchableOpacity>
+        </View>
+        <Animated.View style={[commonStyles.teachersContainer, { opacity: fadeAnim }]}>
+          {['Teacher 1', 'Teacher 2', 'Teacher 3', 'Teacher 4', 'Teacher 5', 'Teacher 6'].map((teacher, index) => (
+            <View key={index} style={commonStyles.card}>
+              <Text style={commonStyles.cardTitle}>{teacher}</Text>
+              <Text style={commonStyles.cardText}>Subject</Text>
+              <Text style={commonStyles.cardText}>Location</Text>
+            </View>
+          ))}
+        </Animated.View>
+
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <ScrollView contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.filtersContainer}>
+                  <Text style={styles.filterTitle}>Subject</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {['Math', 'Science', 'English'].map((subject) => (
+                      <TouchableOpacity key={subject} style={styles.filterButton}>
+                        <Text style={styles.filterButtonText}>{subject}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <Text style={styles.filterTitle}>Area</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {['Algebra', 'Geometry', 'Literature'].length > 5 ? (
+                      <DropDownPicker
+                        open={openDropdown['Area']}
+                        value={null}
+                        items={['Algebra', 'Geometry', 'Literature'].map((area) => ({ label: area, value: area }))}
+                        setOpen={() => toggleDropdown('Area')}
+                        setValue={() => {}}
+                        setItems={() => {}}
+                        containerStyle={{ width: '100%' }}
+                        style={{ borderColor: '#4CAF50', backgroundColor: '#E8F5E9' }}
+                        dropDownContainerStyle={{ backgroundColor: '#E8F5E9' }}
+                      />
+                    ) : (
+                      ['Algebra', 'Geometry', 'Literature'].map((area) => (
+                        <TouchableOpacity key={area} style={styles.filterButton}>
+                          <Text style={styles.filterButtonText}>{area}</Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+                  <Text style={styles.filterTitle}>Location</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {['Taipei', 'Taichung', 'Kaohsiung'].length > 5 ? (
+                      <DropDownPicker
+                        open={openDropdown['Location']}
+                        value={null}
+                        items={['Taipei', 'Taichung', 'Kaohsiung'].map((location) => ({ label: location, value: location }))}
+                        setOpen={() => toggleDropdown('Location')}
+                        setValue={() => {}}
+                        setItems={() => {}}
+                        containerStyle={{ width: '100%' }}
+                        style={{ borderColor: '#4CAF50', backgroundColor: '#E8F5E9' }}
+                        dropDownContainerStyle={{ backgroundColor: '#E8F5E9' }}
+                      />
+                    ) : (
+                      ['Taipei', 'Taichung', 'Kaohsiung'].map((location) => (
+                        <TouchableOpacity key={location} style={styles.filterButton}>
+                          <Text style={styles.filterButtonText}>{location}</Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+                  <Text style={styles.filterTitle}>Format</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {['Online', 'Face to Face', 'Hybrid'].map((format) => (
+                      <TouchableOpacity key={format} style={styles.filterButton}>
+                        <Text style={styles.filterButtonText}>{format}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <Text style={styles.filterTitle}>Frequency</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {['1x a week', '2x a week', '3x a week'].map((frequency) => (
+                      <TouchableOpacity key={frequency} style={styles.filterButton}>
+                        <Text style={styles.filterButtonText}>{frequency}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <Text style={styles.filterTitle}>Duration</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {['30 minutes', '1 hour', '1.5 hours'].map((duration) => (
+                      <TouchableOpacity key={duration} style={styles.filterButton}>
+                        <Text style={styles.filterButtonText}>{duration}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </ScrollView>
+              <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmFilter}>
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
     </View>
   );
 };
@@ -325,6 +337,30 @@ const styles = StyleSheet.create({
     width: 300,
     height: 20,
     borderRadius: 4,
+    marginBottom: 10,
+  },
+  glassContainer: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    flex: 1,
+    marginTop: 10,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8, // For Android
+  },
+  gradientTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#00796B',
+    marginBottom: 5,
+  },
+  gradientSubtitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#00796B',
     marginBottom: 10,
   },
 });
