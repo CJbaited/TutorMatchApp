@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, Platform, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SlidersHorizontal, Star } from 'lucide-react-native';
+import { SlidersHorizontal, Star, CircleX} from 'lucide-react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import LinearGradient from 'react-native-linear-gradient';
@@ -245,8 +245,11 @@ const HomeScreen = () => {
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
+          <View style={styles.drawerContainer}>
+            <View style={styles.drawerContent}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                <CircleX size={24} color={colors.primary} />
+              </TouchableOpacity>
               <ScrollView contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.filtersContainer}>
                   <Text style={styles.filterTitle}>Subject</Text>
@@ -505,6 +508,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 20,
+  },
+  drawerContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  drawerContent: {
+    width: '100%',
+    height: '80%', // Adjust this value to control the height of the drawer
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.secondary,
+  },
+  closeButtonText: {
+    color: colors.primary,
+    fontWeight: 'bold',
   },
 });
 
