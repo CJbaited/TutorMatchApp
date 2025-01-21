@@ -22,4 +22,8 @@ export type RootStackParamList = {
       image: any;
     };
   };
+  Chat: {
+    conversationId: number;
+    participantId: number;
+  };
 };

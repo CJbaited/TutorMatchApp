@@ -8,101 +8,146 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,  // Add this import
+  SafeAreaView, // Add this import
+  Platform, // Add this import
 } from 'react-native';
 import { MessageCircle, Calendar, Star, Heart } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
+import { useChat } from '../context/ChatContext';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.55;
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 const TutorProfileScreen = ({ route }) => {
   const { tutor } = route.params;
+  const { addConversation, conversations } = useChat();
+  const navigation = useNavigation<NavigationProp>();
   const [isFavorite, setIsFavorite] = useState(false);
   const scrollY = new Animated.Value(0);
 
+  const handleStartChat = () => {
+    // Check if conversation already exists
+    const existingConversation = conversations.find(
+      conv => conv.participantId === tutor.id
+    );
+
+    if (existingConversation) {
+      // If exists, navigate to existing chat
+      navigation.navigate('Chat', {
+        conversationId: existingConversation.id,
+        participantId: tutor.id,
+      });
+    } else {
+      // If not exists, create new conversation
+      const conversation = {
+        id: Date.now(),
+        participantId: tutor.id,
+        name: tutor.name,
+        lastMessage: '',
+        time: 'New',
+        unread: 0,
+        image: tutor.image,
+      };
+      
+      addConversation(conversation);
+      navigation.navigate('Chat', {
+        conversationId: conversation.id,
+        participantId: tutor.id,
+        fromProfile: true  // Add this flag
+      });
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Image 
-        source={tutor.image} 
-        style={styles.backgroundImage}
-      />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.mainWrapper}>
+        <Image 
+          source={tutor.image} 
+          style={styles.backgroundImage}
+        />
 
-      <View style={styles.mainContent}>
-        {/* Fixed Info Bar */}
-        <View style={styles.fixedInfoBar}>
-          <View style={styles.ratingContainer}>
-            <Star size={20} color="#FFD700" />
-            <Text style={styles.ratingText}>{tutor.rating}</Text>
+        <View style={styles.mainContent}>
+          {/* Fixed Info Bar */}
+          <View style={styles.fixedInfoBar}>
+            <View style={styles.ratingContainer}>
+              <Star size={20} color="#FFD700" />
+              <Text style={styles.ratingText}>{tutor.rating}</Text>
+            </View>
+            <Text style={styles.priceText}>${tutor.price}/hr</Text>
+            <TouchableOpacity 
+              style={styles.favoriteButton}
+              onPress={() => setIsFavorite(!isFavorite)}
+            >
+              <Heart 
+                size={24} 
+                color={isFavorite ? '#FF6B6B' : '#666'} 
+                fill={isFavorite ? '#FF6B6B' : 'none'}
+              />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.priceText}>${tutor.price}/hr</Text>
-          <TouchableOpacity 
-            style={styles.favoriteButton}
-            onPress={() => setIsFavorite(!isFavorite)}
+
+          <Animated.ScrollView 
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
           >
-            <Heart 
-              size={24} 
-              color={isFavorite ? '#FF6B6B' : '#666'} 
-              fill={isFavorite ? '#FF6B6B' : 'none'}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <Animated.ScrollView 
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-        >
-          <View style={styles.scrollContent}>
-            <Text style={styles.name}>{tutor.name}</Text>
-            <Text style={styles.subject}>{tutor.subject}</Text>
-          
-            <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>About</Text>
-              <Text style={styles.sectionText}>
-                Experienced tutor specializing in {tutor.subject}. 
-                Dedicated to helping students achieve their academic goals.
-              </Text>
-            </View>
+            <View style={styles.scrollContent}>
+              <Text style={styles.name}>{tutor.name}</Text>
+              <Text style={styles.subject}>{tutor.subject}</Text>
             
-            <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Experience</Text>
-              <Text style={styles.sectionText}>
-                • 5+ years of teaching experience{'\n'}
-                • Master's degree in {tutor.subject}{'\n'}
-                • Certified instructor
-              </Text>
-            </View>
+              <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>About</Text>
+                <Text style={styles.sectionText}>
+                  Experienced tutor specializing in {tutor.subject}. 
+                  Dedicated to helping students achieve their academic goals.
+                </Text>
+              </View>
+              
+              <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>Experience</Text>
+                <Text style={styles.sectionText}>
+                  • 5+ years of teaching experience{'\n'}
+                  • Master's degree in {tutor.subject}{'\n'}
+                  • Certified instructor
+                </Text>
+              </View>
 
-            {/* Add more sections */}
-            <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Teaching Style</Text>
-              <Text style={styles.sectionText}>
-                Interactive and engaging approach focusing on practical applications.
-                Tailored learning experience based on student's needs and goals.
-              </Text>
-            </View>
+              {/* Add more sections */}
+              <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>Teaching Style</Text>
+                <Text style={styles.sectionText}>
+                  Interactive and engaging approach focusing on practical applications.
+                  Tailored learning experience based on student's needs and goals.
+                </Text>
+              </View>
 
-            <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Achievements</Text>
-              <Text style={styles.sectionText}>
-                • Outstanding Tutor Award 2023{'\n'}
-                • 100+ successful students{'\n'}
-                • Published educational content
-              </Text>
-            </View>
+              <View style={styles.infoSection}>
+                <Text style={styles.sectionTitle}>Achievements</Text>
+                <Text style={styles.sectionText}>
+                  • Outstanding Tutor Award 2023{'\n'}
+                  • 100+ successful students{'\n'}
+                  • Published educational content
+                </Text>
+              </View>
 
-            {/* Bottom padding for fixed buttons */}
-            <View style={{ height: 100 }} />
-          </View>
-        </Animated.ScrollView>
+              {/* Bottom padding for fixed buttons */}
+              <View style={{ height: Platform.OS === 'ios' ? 120 : 100 }} />
+            </View>
+          </Animated.ScrollView>
+        </View>
       </View>
 
       {/* Top Layer - Fixed Bottom Buttons */}
       <View style={styles.bottomButtons}>
-        <TouchableOpacity style={styles.chatButton}>
+        <TouchableOpacity style={styles.chatButton} onPress={handleStartChat}>
           <MessageCircle size={28} color={colors.primary} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.bookButton}>
@@ -110,12 +155,16 @@ const TutorProfileScreen = ({ route }) => {
           <Text style={styles.bookButtonText}>Book Session</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mainWrapper: {
     flex: 1,
   },
   backgroundImage: {
@@ -175,20 +224,21 @@ const styles = StyleSheet.create({
   },
   bottomButtons: {
     position: 'absolute',
-    bottom: 0,
+    height: 124,
+    bottom: Platform.OS === 'ios' ? 40 : 30,
     left: 0,
     right: 0,
     flexDirection: 'row',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#eee',
-    zIndex: 2,
   },
   chatButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 35,
     backgroundColor: colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -197,9 +247,9 @@ const styles = StyleSheet.create({
   bookButton: {
     flex: 1,
     flexDirection: 'row',
-    height: 60,
+    height: 64,
     backgroundColor: colors.primary,
-    borderRadius: 25,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },

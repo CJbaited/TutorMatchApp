@@ -61,7 +61,7 @@ const BottomTabNavigator = () => {
           </View>
         ),
         tabBarItemStyle: {
-          paddingVertical: 16, // Adjust this value to move icons up/down
+          paddingVertical: 18, // Adjust this value to move icons up/down
         },
       })}
       screenListeners={({ navigation }) => ({
