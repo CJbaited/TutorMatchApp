@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, View, Platform } from 'react-native';
+import { StyleSheet, View, Platform, Dimensions } from 'react-native';
 import { Home, Search, Heart, MessageCircle, User } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
 import HomeScreen from '../screens/HomeScreen';
@@ -8,10 +8,23 @@ import ExploreScreen from '../screens/ExploreScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import Animated, { 
+  useAnimatedStyle, 
+  withSpring, 
+  useSharedValue 
+} from 'react-native-reanimated';
 
 const Tab = createBottomTabNavigator();
 
 const BottomTabNavigator = () => {
+  // Calculate tab width accounting for horizontal margins
+  const screenWidth = Dimensions.get('window').width;
+  const tabBarWidth = screenWidth - 32; // 40 = left(20) + right(20) margin
+  const tabWidth = tabBarWidth / 5; // 5 tabs
+
+  // Update offsetX calculation
+  const offsetX = useSharedValue(tabWidth / 2 - 3); // Center in first tab (-3 is half of dot width)
+
   return (
     <Tab.Navigator
       initialRouteName="Home"
@@ -33,13 +46,28 @@ const BottomTabNavigator = () => {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#666',
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar],
         tabBarShowLabel: false,
         tabBarBackground: () => (
-          <View style={styles.tabBarBackground} />
+          <View style={styles.tabBarBackground}>
+            <Animated.View
+              style={[
+                styles.indicator,
+                useAnimatedStyle(() => ({
+                  transform: [{ translateX: withSpring(offsetX.value) }],
+                })),
+              ]}
+            />
+          </View>
         ),
         tabBarItemStyle: {
           paddingVertical: 16, // Adjust this value to move icons up/down
+        },
+      })}
+      screenListeners={({ navigation }) => ({
+        state: (e) => {
+          const index = navigation.getState().index;
+          offsetX.value = (index * tabWidth) + (tabWidth / 2 - 3);
         },
       })}
     >
@@ -60,6 +88,8 @@ const BottomTabNavigator = () => {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
+    alignSelf: 'center',
+    marginHorizontal: Platform.OS === 'ios' ? 16 : 8,
     bottom: 40,
     left: 20,
     right: 20,
@@ -85,6 +115,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
+    overflow: 'hidden',
+  },
+  indicator: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+    top: 12,
+    // Remove left positioning as it's handled by transform
   },
 });
 
