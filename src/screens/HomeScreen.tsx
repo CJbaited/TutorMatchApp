@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, Platform, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SlidersHorizontal, Star, CircleX} from 'lucide-react-native';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import LinearGradient from 'react-native-linear-gradient';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { RootStackParamList } from '../navigation/types';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { commonStyles, colors } from '../theme/Theme';
 
 type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Home' | 'DevHome'>;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const HomeScreen = () => {
   const route = useRoute<HomeScreenRouteProp>();
@@ -20,6 +22,7 @@ const HomeScreen = () => {
   const [openDropdown, setOpenDropdown] = useState({});
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
+  const navigation = useNavigation<NavigationProp>();
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 150],
@@ -70,14 +73,14 @@ const HomeScreen = () => {
     });
 
   const dummyTutors = [
-    { id: 1, name: 'John Doe', subject: 'Physics', rating: 4.5, price: 30, image: 'https://placeimg.com/100/100/people' },
-    { id: 2, name: 'Jane Smith', subject: 'English', rating: 4.9, price: 40, image: 'https://placeimg.com/101/101/people' },
-    { id: 3, name: 'David Chen', subject: 'Math', rating: 4.8, price: 35, image: 'https://placeimg.com/102/102/people' },
-    { id: 4, name: 'Emily Johnson', subject: 'Chemistry', rating: 4.3, price: 28, image: 'https://placeimg.com/103/103/people' },
-    { id: 5, name: 'Michael Lee', subject: 'History', rating: 4.6, price: 32, image: 'https://placeimg.com/105/105/people' },
-    { id: 6, name: 'Sara Williams', subject: 'Biology', rating: 4.7, price: 37, image: 'https://placeimg.com/104/104/people' },
-    { id: 7, name: 'Alex Brown', subject: 'Literature', rating: 4.2, price: 25, image: 'https://placeimg.com/106/106/people' },
-    { id: 8, name: 'Lisa Miller', subject: 'Geography', rating: 4.8, price: 39, image: 'https://placeimg.com/107/107/people' },
+    { id: 1, name: 'John Doe', subject: 'Physics', rating: 4.5, price: 30, image: require('../assets/pexels-a-darmel-7322232.jpg')},
+    { id: 2, name: 'Jane Smith', subject: 'English', rating: 4.9, price: 40, image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg')},
+    { id: 3, name: 'Emily Kim', subject: 'Math', rating: 4.8, price: 35, image: require('../assets/pexels-pixabay-415829.jpg')},
+    { id: 4, name: 'David Chen', subject: 'Chemistry', rating: 4.3, price: 28, image: require('../assets/pexels-vazhnik-7562313.jpg') },
+    { id: 5, name: 'Mike Lee', subject: 'History', rating: 4.6, price: 32, image: require('../assets/pexels-shvetsa-5257554.jpg')},
+    { id: 6, name: 'Sara Wils', subject: 'Biology', rating: 4.7, price: 37, image: require('../assets/pexels-yogendras31-3748221.jpg')},
+    { id: 7, name: 'Alex Brown', subject: 'Literature', rating: 4.2, price: 25, image: require('../assets/pexels-a-darmel-7322232.jpg') },
+    { id: 8, name: 'Lisa Red', subject: 'Geography', rating: 4.8, price: 39, image: require('../assets/pexels-a-darmel-7322232.jpg')},
   ];
 
   useEffect(() => {
@@ -222,19 +225,34 @@ const HomeScreen = () => {
         >
           <Animated.View style={[commonStyles.teachersContainer, { opacity: fadeAnim }]}>
             {dummyTutors.map((tutor) => (
-              <View key={tutor.id} style={[commonStyles.card, { width: '45%', margin: 4}]}>
+              <TouchableOpacity
+                key={tutor.id}
+                style={[commonStyles.card, { width: '45%', margin: 4, height: 240 }]}
+                onPress={() => navigation.navigate('TutorProfile', { tutor })}
+              >
                 <Image
-                  source={{ uri: tutor.image }}
-                  style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 10 }}
+                  source={typeof tutor.image === 'string' ? { uri: tutor.image } : tutor.image}
+                  style={{
+                    width: '100%',
+                    height: 120,
+                    borderTopLeftRadius: 15,
+                    borderTopRightRadius: 15,
+                    borderBottomLeftRadius: 15,
+                    borderBottomRightRadius: 15,
+                  }}
+                  resizeMode="cover"
+                  onError={(e) => console.log('Image loading error:', e.nativeEvent.error)}
                 />
-                <Text style={commonStyles.cardTitle}>{tutor.name}</Text>
-                <Text style={commonStyles.cardText}>{tutor.subject}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Star size={16} color={colors.primary} />
-                  <Text style={commonStyles.cardText}> {tutor.rating}</Text>
+                <View style={{ padding: 10 }}>
+                  <Text style={commonStyles.cardTitle}>{tutor.name}</Text>
+                  <Text style={commonStyles.cardText}>{tutor.subject}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Star size={16} color={colors.primary} />
+                    <Text style={commonStyles.cardText}> {tutor.rating}</Text>
+                  </View>
+                  <Text style={commonStyles.cardText}>${tutor.price}/hr</Text>
                 </View>
-                <Text style={commonStyles.cardText}>${tutor.price}/hr</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </Animated.View>
         </ScrollView>

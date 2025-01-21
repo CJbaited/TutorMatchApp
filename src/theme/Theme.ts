@@ -68,7 +68,7 @@ const commonStyles = StyleSheet.create({
     padding: spacing.medium,
     marginBottom: spacing.large,
     backgroundColor: colors.cardBackground,
-    borderRadius: 10,
+    borderRadius: 15,
     alignItems: 'center',
   },
   cardText: {

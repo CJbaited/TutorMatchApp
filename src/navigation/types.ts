@@ -12,4 +12,14 @@ export type RootStackParamList = {
   RegistrationComplete: { role: string };
   Home: { role: string };
   DevHome: undefined;
+  TutorProfile: {
+    tutor: {
+      id: number;
+      name: string;
+      subject: string;
+      rating: number;
+      price: number;
+      image: any;
+    };
+  };
 };

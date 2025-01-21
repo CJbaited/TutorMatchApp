@@ -13,6 +13,7 @@ import FrequencySelectionScreen from '../screens/FrequencySelectionScreen';
 import DurationSelectionScreen from '../screens/DurationSelectionScreen';
 import RegistrationCompleteScreen from '../screens/RegistrationCompleteScreen';
 import BottomTabNavigator from './BottomTabNavigator';
+import TutorProfileScreen from '../screens/TutorProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,9 +35,16 @@ const AppNavigator = ({ initialRouteName = "Welcome" }) => {
       {/* Direct route to HomeScreen for development */}
       <Stack.Screen
         name="DevHome"
-        component={HomeScreen}
-        initialParams={{ role: 'student' }}
+        component={BottomTabNavigator}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="TutorProfile" 
+        component={TutorProfileScreen} 
+        options={{ 
+          headerShown: false,
+          presentation: 'modal'
+        }}
       />
     </Stack.Navigator>
   );
