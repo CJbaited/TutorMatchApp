@@ -1,360 +1,234 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, Platform, Animated, Image } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import {View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Platform, Dimensions, Pressable} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SlidersHorizontal, Star, CircleX} from 'lucide-react-native';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
-import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
-import LinearGradient from 'react-native-linear-gradient';
-import DropDownPicker from 'react-native-dropdown-picker';
-import { RootStackParamList } from '../navigation/types';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { commonStyles, colors } from '../theme/Theme';
+import { Menu, Bell, ChevronRight, Star } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import {HomeSkeleton, TutorCardSkeleton} from '../components/HomeSkeleton';
 
-type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Home' | 'DevHome'>;
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+const { width } = Dimensions.get('window');
+const cardWidth = width * 0.7;
+const smallCardWidth = width * 0.4;
+
+// Add categories array before HomeScreen component
+const categories = ['Recommended', 'New', 'Popular', 'Best Rated'];
 
 const HomeScreen = () => {
-  const route = useRoute<HomeScreenRouteProp>();
-  const { role } = route.params;
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('New');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState({});
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const navigation = useNavigation<NavigationProp>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCategoryLoading, setIsCategoryLoading] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('Recommended');
+  const navigation = useNavigation();
+  const scrollViewRef = useRef(null);
 
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 150],
-    outputRange: [240, 70],
-    extrapolate: 'clamp',
-  });
-
-  const titleOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
-
-  const buttonTranslateX = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, -32], // Move left when scrolled
-    extrapolate: 'clamp',
-  });
-
-  const buttonTranslateY = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, -53], // Move up when scrolled
-    extrapolate: 'clamp',
-  });
-
-  const buttonScale = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [.9, .8],
-    extrapolate: 'clamp',
-  });
-  const buttonSize = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [1, 0.7],
-    extrapolate: 'clamp',
-  });
-
-  const buttonPosition = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, -30],
-    extrapolate: 'clamp',
-  });
-
-    // NEW animation for 3 buttons alignment
-    const buttonsMarginLeft = scrollY.interpolate({
-      inputRange: [0, 50],
-      outputRange: ['0', '20'], // Change alignment
-      extrapolate: 'clamp',
-    });
-
-  const dummyTutors = [
-    { id: 1, name: 'John Doe', subject: 'Physics', rating: 4.5, price: 30, image: require('../assets/pexels-a-darmel-7322232.jpg')},
-    { id: 2, name: 'Jane Smith', subject: 'English', rating: 4.9, price: 40, image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg')},
-    { id: 3, name: 'Emily Kim', subject: 'Math', rating: 4.8, price: 35, image: require('../assets/pexels-pixabay-415829.jpg')},
-    { id: 4, name: 'David Chen', subject: 'Chemistry', rating: 4.3, price: 28, image: require('../assets/pexels-vazhnik-7562313.jpg') },
-    { id: 5, name: 'Mike Lee', subject: 'History', rating: 4.6, price: 32, image: require('../assets/pexels-shvetsa-5257554.jpg')},
-    { id: 6, name: 'Sara Wils', subject: 'Biology', rating: 4.7, price: 37, image: require('../assets/pexels-yogendras31-3748221.jpg')},
-    { id: 7, name: 'Alex Brown', subject: 'Literature', rating: 4.2, price: 25, image: require('../assets/pexels-a-darmel-7322232.jpg') },
-    { id: 8, name: 'Lisa Red', subject: 'Geography', rating: 4.8, price: 39, image: require('../assets/pexels-a-darmel-7322232.jpg')},
-  ];
-
+  // Simulate initial loading
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
+    setTimeout(() => {
+      setIsLoading(false);
     }, 2000);
-    return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!loading) {
-      fadeAnim.setValue(0);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
+  // Simulate category change loading
+  const handleCategoryChange = (category) => {
+    setIsCategoryLoading(true);
+    setActiveCategory(category);
+    setTimeout(() => {
+      setIsCategoryLoading(false);
+    }, 1000);
+  };
+
+  // Add categorized tutors data
+  const tutorsByCategory = {
+    Recommended: {
+      title: "Tutors of the Month",
+      data: [
+        {
+          id: '1',
+          name: 'Dr. Sarah Johnson',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'Harvard University',
+          specialization: 'Mathematics',
+          rating: 4.9,
+          reviews: 128
+        },
+        // Add more recommended tutors...
+      ]
+    },
+    New: {
+      title: "New Tutors",
+      data: [
+        {
+          id: '2',
+          name: 'Dr. James Wilson',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'Stanford University',
+          specialization: 'Physics',
+          rating: 4.7,
+          reviews: 14
+        },
+        // Add more new tutors...
+      ]
+    },
+    Popular: {
+      title: "Most Popular Tutors",
+      data: [
+        {
+          id: '3',
+          name: 'Prof. Emma Davis',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'MIT',
+          specialization: 'Computer Science',
+          rating: 4.8,
+          reviews: 256
+        },
+        // Add more popular tutors...
+      ]
+    },
+    'Best Rated': {
+      title: "Top Rated Tutors",
+      data: [
+        {
+          id: '4',
+          name: 'Dr. Michael Chen',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'Yale University',
+          specialization: 'Chemistry',
+          rating: 5.0,
+          reviews: 89
+        },
+        // Add more best rated tutors...
+      ]
     }
-  }, [loading]);
-
-  const handleConfirmFilter = () => {
-    setModalVisible(false);
-    setLoading(true);
-    // Simulate a network request to fetch filtered data
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2000); // 2 seconds delay
-
-    return () => clearTimeout(timer);
   };
 
-  const toggleDropdown = (category) => {
-    setOpenDropdown((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
-  };
+  // Get active category data
+  const activeCategoryData = tutorsByCategory[activeCategory];
 
-  if (loading) {
-    return (
-      <SkeletonPlaceholder>
-        <View style={styles.container}>
-        <LinearGradient colors={['#4c669f', '#3b5998', '#192f6a']} style={styles.skeletonContainer} />
-          <View style={styles.skeletonTitle} />
-          <View style={styles.skeletonSubtitle} />
-          <View style={styles.skeletonContent} />
-          <View style={styles.skeletonContent} />
-          <View style={styles.skeletonContent} />
-        </View>
-      </SkeletonPlaceholder>
-    );
+  if (isLoading) {
+    return <HomeSkeleton />;
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, paddingTop: -4, paddingHorizontal: 20, backgroundColor: '#e0f7fa' }}>
-      {/* Glass-like container */}
-      <View style={[styles.glassContainer, { flex: 1 }]}>
-        <Animated.View style={{ height: headerHeight, justifyContent: 'center', paddingHorizontal: 4, marginHorizontal: -10 }}>
-          {/* Top top part: filter button */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'absolute', right: 10, top: 10 }}>
-            <TouchableOpacity style={{ width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.secondary }} onPress={() => setModalVisible(true)}>
-              <SlidersHorizontal size={24} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          {/* Top middle part: title and subtitle */}
-          <Animated.View style={{ opacity: titleOpacity, marginTop: 60 , marginLeft: 10 }}>
-            <Text style={styles.gradientTitle}>Welcome,</Text>
-            <Text style={styles.gradientSubtitle}>Student</Text>
-          </Animated.View>
-          <Animated.View style={{ opacity: titleOpacity, marginBottom: 5, marginLeft: 10 }}>
-            <Text style={{ fontSize: 14, color: colors.textPrimary, textAlign: 'left' }}>Here are your recommended tutors:</Text>
-          </Animated.View>
-          {/* Top bottom part: 3 filter buttons */}
-          <Animated.View 
-            style={{ 
-              flexDirection: 'row',
-              justifyContent: 'center',
-              position: 'static',
-              marginBottom: -10,
-              //right: 70, // Space for filter button
-              transform: [
-                { translateX: buttonTranslateX },
-                { translateY: buttonTranslateY },
-                { scale: buttonScale }
-              ],
-              // Add this to control overall position
-              top: scrollY.interpolate({
-                inputRange: [0, 50],
-                outputRange: [200, 50], // Adjust these values to match header height
-                extrapolate: 'clamp'
-              })
-            }}
-          >
-            <TouchableOpacity 
-              style={[
-                commonStyles.button, 
-                filter === 'New' && { backgroundColor: colors.primary },
-                { marginHorizontal: 2 } // Add spacing between buttons
-              ]} 
-              onPress={() => setFilter('New')}
-            >
-              <Text style={[commonStyles.buttonText, filter === 'New' && { color: colors.buttonText }]}>
-                New
-              </Text>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconButton}>
+          <Menu size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Find Tutors</Text>
+        <TouchableOpacity style={styles.iconButton}>
+          <Bell size={24} color="#333" />
+        </TouchableOpacity>
+      </View>
 
-            <TouchableOpacity 
-              style={[
-                commonStyles.button, 
-                filter === 'Popular' && { backgroundColor: colors.primary },
-                { marginHorizontal: 2 } // Add spacing between buttons
-              ]} 
-              onPress={() => setFilter('Popular')}
-            >
-              <Text style={[commonStyles.buttonText, filter === 'Popular' && { color: colors.buttonText }]}>
-                Popular
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[
-                commonStyles.button, 
-                filter === 'Best Rated' && { backgroundColor: colors.primary },
-                { marginHorizontal: 2 } // Add spacing between buttons
-              ]} 
-              onPress={() => setFilter('Best Rated')}
-            >
-              <Text style={[commonStyles.buttonText, filter === 'Best Rated' && { color: colors.buttonText }]}>
-                Best Rated
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </Animated.View>
-        <ScrollView
-          style={{ flex: 1, marginTop: 5 , marginHorizontal: -12 }}
-          showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
-          scrollEventThrottle={16}
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Categories */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoriesContainer}
         >
-          <Animated.View style={[commonStyles.teachersContainer, { opacity: fadeAnim }]}>
-            {dummyTutors.map((tutor) => (
-              <TouchableOpacity
-                key={tutor.id}
-                style={[commonStyles.card, { width: '45%', margin: 4, height: 240 }]}
-                onPress={() => navigation.navigate('TutorProfile', { tutor })}
-              >
-                <Image
-                  source={typeof tutor.image === 'string' ? { uri: tutor.image } : tutor.image}
-                  style={{
-                    width: '100%',
-                    height: 120,
-                    borderTopLeftRadius: 15,
-                    borderTopRightRadius: 15,
-                    borderBottomLeftRadius: 15,
-                    borderBottomRightRadius: 15,
-                  }}
-                  resizeMode="cover"
-                  onError={(e) => console.log('Image loading error:', e.nativeEvent.error)}
-                />
-                <View style={{ padding: 10 }}>
-                  <Text style={commonStyles.cardTitle}>{tutor.name}</Text>
-                  <Text style={commonStyles.cardText}>{tutor.subject}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Star size={16} color={colors.primary} />
-                    <Text style={commonStyles.cardText}> {tutor.rating}</Text>
-                  </View>
-                  <Text style={commonStyles.cardText}>${tutor.price}/hr</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </Animated.View>
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.categoryButton,
+                activeCategory === category && styles.activeCategoryButton
+              ]}
+              onPress={() => handleCategoryChange(category)}
+            >
+              <Text style={[
+                styles.categoryText,
+                activeCategory === category && styles.activeCategoryText
+              ]}>
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
 
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.drawerContainer}>
-            <View style={styles.drawerContent}>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
-                <CircleX size={24} color={colors.primary} />
+        {/* Tutors Section */}
+        {isCategoryLoading ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{tutorsByCategory[activeCategory].title}</Text>
+              <TouchableOpacity style={styles.seeAllButton}>
+                <Text style={styles.seeAllText}>See All</Text>
+                <ChevronRight size={20} color="#fff" />
               </TouchableOpacity>
-              <ScrollView contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
-                <View style={styles.filtersContainer}>
-                  <Text style={styles.filterTitle}>Subject</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {['Math', 'Science', 'English'].map((subject) => (
-                      <TouchableOpacity key={subject} style={styles.filterButton}>
-                        <Text style={styles.filterButtonText}>{subject}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                  <Text style={styles.filterTitle}>Area</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {['Algebra', 'Geometry', 'Literature'].length > 5 ? (
-                      <DropDownPicker
-                        open={openDropdown['Area']}
-                        value={null}
-                        items={['Algebra', 'Geometry', 'Literature'].map((area) => ({ label: area, value: area }))}
-                        setOpen={() => toggleDropdown('Area')}
-                        setValue={() => {}}
-                        setItems={() => {}}
-                        containerStyle={{ width: '100%' }}
-                        style={{ borderColor: '#4CAF50', backgroundColor: '#E8F5E9' }}
-                        dropDownContainerStyle={{ backgroundColor: '#E8F5E9' }}
-                      />
-                    ) : (
-                      ['Algebra', 'Geometry', 'Literature'].map((area) => (
-                        <TouchableOpacity key={area} style={styles.filterButton}>
-                          <Text style={styles.filterButtonText}>{area}</Text>
-                        </TouchableOpacity>
-                      ))
-                    )}
-                  </ScrollView>
-                  <Text style={styles.filterTitle}>Location</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {['Taipei', 'Taichung', 'Kaohsiung'].length > 5 ? (
-                      <DropDownPicker
-                        open={openDropdown['Location']}
-                        value={null}
-                        items={['Taipei', 'Taichung', 'Kaohsiung'].map((location) => ({ label: location, value: location }))}
-                        setOpen={() => toggleDropdown('Location')}
-                        setValue={() => {}}
-                        setItems={() => {}}
-                        containerStyle={{ width: '100%' }}
-                        style={{ borderColor: '#4CAF50', backgroundColor: '#E8F5E9' }}
-                        dropDownContainerStyle={{ backgroundColor: '#E8F5E9' }}
-                      />
-                    ) : (
-                      ['Taipei', 'Taichung', 'Kaohsiung'].map((location) => (
-                        <TouchableOpacity key={location} style={styles.filterButton}>
-                          <Text style={styles.filterButtonText}>{location}</Text>
-                        </TouchableOpacity>
-                      ))
-                    )}
-                  </ScrollView>
-                  <Text style={styles.filterTitle}>Format</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {['Online', 'Face to Face', 'Hybrid'].map((format) => (
-                      <TouchableOpacity key={format} style={styles.filterButton}>
-                        <Text style={styles.filterButtonText}>{format}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                  <Text style={styles.filterTitle}>Frequency</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {['1x a week', '2x a week', '3x a week'].map((frequency) => (
-                      <TouchableOpacity key={frequency} style={styles.filterButton}>
-                        <Text style={styles.filterButtonText}>{frequency}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                  <Text style={styles.filterTitle}>Duration</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {['30 minutes', '1 hour', '1.5 hours'].map((duration) => (
-                      <TouchableOpacity key={duration} style={styles.filterButton}>
-                        <Text style={styles.filterButtonText}>{duration}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </ScrollView>
-              <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmFilter}>
-                <Text style={styles.confirmButtonText}>Confirm</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {[1, 2, 3].map((item) => (
+                <TutorCardSkeleton key={item} />
+              ))}
+            </ScrollView>
+          </View>
+        ) : (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{activeCategoryData.title}</Text>
+              <TouchableOpacity 
+                style={styles.seeAllButton}
+                onPress={() => navigation.navigate('TutorsOfMonth', { category: activeCategory })}
+              >
+                <Text style={styles.seeAllText}>See All</Text>
+                <ChevronRight size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredTutorsContainer}
+            >
+              {activeCategoryData.data.map((tutor) => (
+                <Pressable
+                  key={tutor.id}
+                  style={styles.featuredTutorCard}
+                  onPress={() => navigation.navigate('TutorProfile', { tutor })}
+                >
+                  <Image source={tutor.image} style={styles.featuredTutorImage} />
+                  <View style={styles.tutorInfo}>
+                    <Text style={styles.tutorName}>{tutor.name}</Text>
+                    <Text style={styles.tutorAffiliation}>{tutor.affiliation}</Text>
+                    <Text style={styles.tutorSpecialization}>{tutor.specialization}</Text>
+                    <View style={styles.ratingContainer}>
+                      <Star size={16} color="#FFD700" />
+                      <Text style={styles.rating}>{tutor.rating}</Text>
+                      <Text style={styles.reviews}>({tutor.reviews} reviews)</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+              <TouchableOpacity 
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate('TutorsOfMonth', { category: activeCategory })}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        )}
+
+        {/* All Tutors */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.allTutorsInfoCard}>
+            <View style={styles.infoCardContent}>
+              <Text style={styles.infoCardTitle}>Browse All Tutors</Text>
+              <Text style={styles.infoCardDescription}>
+                Find the perfect tutor from our extensive network of qualified professionals
+              </Text>
+              <TouchableOpacity 
+                style={styles.infoCardButton}
+                onPress={() => navigation.navigate('AllTutors')}
+              >
+                <Text style={styles.infoCardButtonText}>Explore</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -362,200 +236,197 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
+    backgroundColor: '#F8F9FA',
   },
-  headerContainer: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingTop: Platform.OS === 'ios' ? 50 : 20, // Adjust for dynamic island on iPhones
-    paddingHorizontal: 20,
-  },
-  topContainer: {
-    alignItems: 'flex-start',
-    paddingTop: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-    marginBottom: 10,
-  },
-  circleButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E0E0E0',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F8F9FA', // Changed to match container
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'left',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-  },
-  filterButton: {
-    backgroundColor: '#E0E0E0',
-    padding: 10,
-    borderRadius: 20,
-    margin: 5,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  selectedButton: {
-    backgroundColor: '#4CAF50',
-  },
-  filterButtonText: {
-    color: '#333',
-    fontWeight: 'bold',
-  },
-  selectedButtonText: {
-    color: '#fff',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingTop: Platform.OS === 'ios' ? 30 : 20, // Adjust for dynamic island on iPhones
-    paddingHorizontal: 20,
-    alignItems: 'center',
-  },
-  scrollViewContent: {
-    alignItems: 'center',
-  },
-  filtersContainer: {
-    width: '100%',
-  },
-  filterTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-    marginBottom: 5,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20, // Adjust for dynamic island on iPhones
-  },
-  horizontalScroll: {
-    marginBottom: 0,
-    paddingBottom: 0,
-  },
-  confirmButton: {
-    width: '95%',
-    padding: 15,
-    backgroundColor: '#4CAF50',
-    borderRadius: 25,
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  skeletonContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 80 : 20, // Adjust for dynamic island on iPhones
-  },
-  skeletonTitle: {
-    width: 200,
-    height: 30,
-    borderRadius: 4,
-    marginBottom: 20,
-  },
-  skeletonSubtitle: {
-    width: 150,
-    height: 20,
-    borderRadius: 4,
-    marginBottom: 20,
-  },
-  skeletonContent: {
-    width: 300,
-    height: 20,
-    borderRadius: 4,
-    marginBottom: 10,
-  },
-  glassContainer: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20,
-    flex: 1,
-    marginTop: 10,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8, // For Android
-  },
-  gradientTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#00796B',
-    marginBottom: 5,
-  },
-  gradientSubtitle: {
+  headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#00796B',
-    marginBottom: 10,
+    fontWeight: '600',
+    color: '#333',
   },
-  titleContainer: {
-    marginTop: 80,
-    alignItems: 'flex-start',
+  iconButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
   },
-  filterButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
+  scrollContent: {
+    paddingBottom: 24,
   },
-  drawerContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  categoriesContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  drawerContent: {
-    width: '100%',
-    height: '90%', // Adjust this value to control the height of the drawer
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 48,
+  categoryButton: {
     paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+    marginRight: 12,
+  },
+  activeCategoryButton: {
+    backgroundColor: '#084843', // Updated accent color
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  activeCategoryText: {
+    color: '#FFF',
+  },
+  sectionContainer: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#084843', // Added background
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#fff', // Changed to white
+    marginRight: 4,
+  },
+  featuredTutorsContainer: {
+    paddingRight: 16,
+  },
+  featuredTutorCard: {
+    width: cardWidth,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    marginRight: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  featuredTutorImage: {
+    width: '100%',
+    height: 200,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  tutorInfo: {
+    padding: 16,
+  },
+  tutorName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  tutorAffiliation: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  tutorSpecialization: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  closeButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  rating: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+    marginLeft: 4,
+  },
+  reviews: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 4,
+  },
+  viewAllButton: {
+    width: 100,
+    height: 200,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.secondary,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 16,
   },
-  closeButtonText: {
-    color: colors.primary,
-    fontWeight: 'bold',
+  viewAllText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+  },
+  allTutorsInfoCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  infoCardContent: {
+    flex: 1,
+  },
+  infoCardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  infoCardDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  infoCardButton: {
+    backgroundColor: '#084843',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  infoCardButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

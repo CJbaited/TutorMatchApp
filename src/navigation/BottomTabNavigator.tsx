@@ -17,12 +17,9 @@ import Animated, {
 const Tab = createBottomTabNavigator();
 
 const BottomTabNavigator = () => {
-  // Calculate tab width accounting for horizontal margins
   const screenWidth = Dimensions.get('window').width;
   const tabBarWidth = screenWidth - 32; // 40 = left(20) + right(20) margin
   const tabWidth = tabBarWidth / 5; // 5 tabs
-
-  // Update offsetX calculation
   const offsetX = useSharedValue(tabWidth / 2 - 3); // Center in first tab (-3 is half of dot width)
 
   return (
@@ -30,7 +27,7 @@ const BottomTabNavigator = () => {
       initialRouteName="Home"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ color, size }) => {
-          const iconSize = 34; // Reduced from 48
+          const iconSize = Platform.OS === 'ios' ? 32 : 28; //34;  Reduced from 48
           switch (route.name) {
             case 'Home':
               return <Home size={iconSize} color={color} />;
@@ -61,13 +58,17 @@ const BottomTabNavigator = () => {
           </View>
         ),
         tabBarItemStyle: {
-          paddingVertical: 18, // Adjust this value to move icons up/down
+          paddingVertical: Platform.OS === 'ios' ? 18 : 14, // 18,  Adjust this value to move icons up/down
         },
       })}
       screenListeners={({ navigation }) => ({
         state: (e) => {
           const index = navigation.getState().index;
-          offsetX.value = (index * tabWidth) + (tabWidth / 2 - 3);
+          const baseOffset = (index * tabWidth) + (tabWidth / 2.1);
+          // Adjust offset based on platform
+          offsetX.value = Platform.OS === 'ios' 
+            ? baseOffset - 0
+            : baseOffset - -8;
         },
       })}
     >
@@ -90,10 +91,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignSelf: 'center',
     marginHorizontal: Platform.OS === 'ios' ? 16 : 8,
-    bottom: 40,
+    bottom: Platform.OS === 'ios' ? 24 : 12, // Adjusted bottom spacing
     left: 20,
     right: 20,
-    height: 72,
+    height: Platform.OS === 'ios' ? 68 : 58, // Adjusted height
     borderRadius: 25,
     backgroundColor: 'transparent',
     elevation: 0,
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
     height: 6,
     backgroundColor: colors.primary,
     borderRadius: 3,
-    top: 12,
+    top: Platform.OS === 'ios' ? 12 : 10,
     // Remove left positioning as it's handled by transform
   },
 });

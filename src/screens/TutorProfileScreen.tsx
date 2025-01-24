@@ -57,8 +57,7 @@ const TutorProfileScreen = ({ route }) => {
       addConversation(conversation);
       navigation.navigate('Chat', {
         conversationId: conversation.id,
-        participantId: tutor.id,
-        fromProfile: true  // Add this flag
+        participantId: tutor.id
       });
     }
   };
