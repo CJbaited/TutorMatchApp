@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Menu, Bell, ChevronRight, Star } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import {HomeSkeleton, TutorCardSkeleton} from '../components/HomeSkeleton';
+import DrawerMenu from '../components/DrawerMenu';
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.7;
@@ -16,6 +17,7 @@ const HomeScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Recommended');
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const navigation = useNavigation();
   const scrollViewRef = useRef(null);
 
@@ -38,7 +40,7 @@ const HomeScreen = () => {
   // Add categorized tutors data
   const tutorsByCategory = {
     Recommended: {
-      title: "Tutors of the Month",
+      title: "Recommended Tutors",
       data: [
         {
           id: '1',
@@ -108,9 +110,17 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <DrawerMenu 
+        isVisible={isDrawerVisible}
+        onClose={() => setIsDrawerVisible(false)}
+      />
+      
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton}>
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => setIsDrawerVisible(true)}
+        >
           <Menu size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Find Tutors</Text>
@@ -221,7 +231,7 @@ const HomeScreen = () => {
               </Text>
               <TouchableOpacity 
                 style={styles.infoCardButton}
-                onPress={() => navigation.navigate('AllTutors')}
+                onPress={() => navigation.navigate('Explore')}
               >
                 <Text style={styles.infoCardButtonText}>Explore</Text>
               </TouchableOpacity>
