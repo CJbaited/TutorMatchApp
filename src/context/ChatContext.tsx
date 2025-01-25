@@ -23,6 +23,7 @@ type ChatContextType = {
   messages: { [conversationId: number]: Message[] };
   addConversation: (conversation: Conversation) => void;
   addMessage: (conversationId: number, message: Message) => void;
+  deleteConversation: (conversationId: number) => void;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -65,8 +66,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const deleteConversation = (conversationId: number) => {
+    setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+    setMessages(prev => {
+      const newMessages = { ...prev };
+      delete newMessages[conversationId];
+      return newMessages;
+    });
+  };
+
   return (
-    <ChatContext.Provider value={{ conversations, messages, addConversation, addMessage }}>
+    <ChatContext.Provider value={{ 
+      conversations, 
+      messages, 
+      addConversation, 
+      addMessage,
+      deleteConversation 
+    }}>
       {children}
     </ChatContext.Provider>
   );

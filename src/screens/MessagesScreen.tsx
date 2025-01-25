@@ -1,53 +1,85 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
 import { colors } from '../theme/Theme';
 import { useChat } from '../context/ChatContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { Swipeable } from 'react-native-gesture-handler';
+import { Trash2, MoreVertical } from 'lucide-react-native';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const MessagesScreen = () => {
-  const { conversations } = useChat();
+  const [isEditing, setIsEditing] = useState(false);
+  const { conversations, deleteConversation } = useChat();
   const navigation = useNavigation<NavigationProp>();
+
+  const renderRightActions = (conversationId) => {
+    return (
+      <TouchableOpacity
+        style={styles.deleteAction}
+        onPress={() => deleteConversation(conversationId)}
+      >
+        <Trash2 size={24} color="#fff" />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.glassContainer}>
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
-        
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {conversations.map((chat) => (
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => setIsEditing(!isEditing)}
+        >
+          <MoreVertical size={24} color="#333" />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={conversations}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.listContainer}
+        renderItem={({ item }) => (
+          <Swipeable renderRightActions={() => renderRightActions(item.id)}>
             <TouchableOpacity 
-              key={chat.id} 
               style={styles.chatCard}
               onPress={() => navigation.navigate('Chat', {
-                conversationId: chat.id,
-                participantId: chat.participantId,
+                conversationId: item.id,
+                participantId: item.participantId
               })}
             >
-              <Image source={chat.image} style={styles.avatar} />
+              <Image source={item.image} style={styles.avatar} />
               <View style={styles.chatInfo}>
                 <View style={styles.chatHeader}>
-                  <Text style={styles.name}>{chat.name}</Text>
-                  <Text style={styles.time}>{chat.time}</Text>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={styles.time}>{item.time}</Text>
                 </View>
                 <View style={styles.messageContainer}>
                   <Text style={styles.lastMessage} numberOfLines={1}>
-                    {chat.lastMessage}
+                    {item.lastMessage || 'Start a conversation'}
                   </Text>
-                  {chat.unread > 0 && (
+                  {item.unread > 0 && (
                     <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadText}>{chat.unread}</Text>
+                      <Text style={styles.unreadText}>{item.unread}</Text>
                     </View>
                   )}
                 </View>
               </View>
+              {isEditing && (
+                <TouchableOpacity 
+                  style={styles.deleteButton}
+                  onPress={() => deleteConversation(item.id)}
+                >
+                  <Trash2 size={20} color="#FF4444" />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+          </Swipeable>
+        )}
+      />
     </SafeAreaView>
   );
 };
@@ -55,38 +87,48 @@ const MessagesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e0f7fa',
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    backgroundColor: '#F8F9FA',
+    paddingTop: Platform.OS === 'android' ? 38 : 0,
   },
-  glassContainer: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20,
-    flex: 1,
-    padding: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F8F9FA',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 20,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+  },
+  listContainer: {
+    padding: 16,
   },
   chatCard: {
     flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   avatar: {
     width: 50,
@@ -136,6 +178,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  deleteAction: {
+    backgroundColor: '#FF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    height: '100%',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
+  }
 });
 
 export default MessagesScreen;
