@@ -1,19 +1,9 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  Animated,  // Add this import
-  SafeAreaView, // Add this import
-  Platform, // Add this import
-} from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Animated, SafeAreaView, Platform, } from 'react-native';
 import { MessageCircle, Calendar, Star, Heart } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
 import { useChat } from '../context/ChatContext';
+import { useFavorites } from '../contexts/FavoritesContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -27,9 +17,18 @@ const TutorProfileScreen = ({ route }) => {
   const { tutor } = route.params;
   const { addConversation, conversations } = useChat();
   const navigation = useNavigation<NavigationProp>();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { isFavorite, addFavorite, removeFavorite } = useFavorites();
+  const [isFav, setIsFav, ] = useState(() => isFavorite(tutor.id));
   const scrollY = new Animated.Value(0);
 
+  const handleFavoritePress = () => {
+    if (isFav) {
+      removeFavorite(tutor.id);
+    } else {
+      addFavorite(tutor);
+    }
+    setIsFav(!isFav);
+  };
   const handleStartChat = () => {
     // Check if conversation already exists
     const existingConversation = conversations.find(
@@ -71,21 +70,21 @@ const TutorProfileScreen = ({ route }) => {
         />
 
         <View style={styles.mainContent}>
-          {/* Fixed Info Bar */}
           <View style={styles.fixedInfoBar}>
             <View style={styles.ratingContainer}>
               <Star size={20} color="#FFD700" />
               <Text style={styles.ratingText}>{tutor.rating}</Text>
+              <Text style={styles.reviews}>({tutor.reviews} reviews)</Text>
             </View>
             <Text style={styles.priceText}>${tutor.price}/hr</Text>
             <TouchableOpacity 
               style={styles.favoriteButton}
-              onPress={() => setIsFavorite(!isFavorite)}
+              onPress={handleFavoritePress}
             >
-              <Heart 
-                size={24} 
-                color={isFavorite ? '#FF6B6B' : '#666'} 
-                fill={isFavorite ? '#FF6B6B' : 'none'}
+            <Heart 
+              size={24} 
+              color={isFav ? '#FF6B6B' : '#666'} 
+              fill={isFav ? '#FF6B6B' : 'none'}
               />
             </TouchableOpacity>
           </View>
@@ -100,14 +99,15 @@ const TutorProfileScreen = ({ route }) => {
           >
             <View style={styles.scrollContent}>
               <Text style={styles.name}>{tutor.name}</Text>
-              <Text style={styles.subject}>{tutor.subject}</Text>
+              <Text style={styles.affiliation}>{tutor.affiliation}</Text>
+              <Text style={styles.specialization}>{tutor.specialization}</Text>
             
               <View style={styles.infoSection}>
-                <Text style={styles.sectionTitle}>About</Text>
-                <Text style={styles.sectionText}>
-                  Experienced tutor specializing in {tutor.subject}. 
-                  Dedicated to helping students achieve their academic goals.
-                </Text>
+                <Text style={styles.sectionTitle}>About</Text>                
+                  <Text style={styles.sectionText}>
+                    Experienced tutor specializing in {tutor.specialization}. 
+                    Dedicated to helping students achieve their academic goals.
+                  </Text>
               </View>
               
               <View style={styles.infoSection}>
@@ -144,10 +144,12 @@ const TutorProfileScreen = ({ route }) => {
         </View>
       </View>
 
-      {/* Top Layer - Fixed Bottom Buttons */}
       <View style={styles.bottomButtons}>
-        <TouchableOpacity style={styles.chatButton} onPress={handleStartChat}>
-          <MessageCircle size={28} color={colors.primary} />
+        <TouchableOpacity 
+          style={styles.chatButton} 
+          onPress={handleStartChat}
+        >
+          <MessageCircle size={28} color="#084843" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.bookButton}>
           <Calendar size={28} color="#fff" />
@@ -174,8 +176,8 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-    marginTop: IMAGE_HEIGHT * 0.65,
-    backgroundColor: '#fff',
+    marginTop: IMAGE_HEIGHT * (Platform.OS === 'ios' ? 0.78 : 1),//0.78,
+    backgroundColor: '#F8F9FA',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
   },
@@ -187,9 +189,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    backgroundColor: '#FFF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   scrollView: {
     flex: 1,
@@ -199,87 +210,121 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 10,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
   },
-  subject: {
-    fontSize: 18,
+  affiliation: {
+    fontSize: 16,
     color: '#666',
-    marginTop: 5,
+    marginBottom: 4,
+  },
+  specialization: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 16,
   },
   infoSection: {
     marginTop: 20,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  sectionCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   sectionText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
     lineHeight: 24,
   },
   bottomButtons: {
     position: 'absolute',
-    height: 124,
-    bottom: Platform.OS === 'ios' ? 40 : 30,
+    bottom: 0,
     left: 0,
     right: 0,
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    padding: 16,
+    backgroundColor: '#FFF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        paddingBottom: 34,
+      },
+      android: {
+        elevation: 8,
+        paddingBottom: 16,
+      },
+    }),
   },
   chatButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 35,
-    backgroundColor: colors.secondary,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: 12,
   },
   bookButton: {
     flex: 1,
+    height: 56,
     flexDirection: 'row',
-    height: 64,
-    backgroundColor: colors.primary,
-    borderRadius: 30,
+    backgroundColor: '#084843',
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
   bookButtonText: {
-    color: '#fff',
+    color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    fontWeight: '500',
+    marginLeft: 8,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   ratingText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 5,
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
+    marginLeft: 4,
+  },
+  reviews: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 4,
   },
   priceText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.primary,
+    fontWeight: '600',
+    color: '#084843',
   },
   favoriteButton: {
-    width: 40,
-    height: 40,
+    padding: 8,
     borderRadius: 20,
-    backgroundColor: colors.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
   },
 });
 

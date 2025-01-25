@@ -37,7 +37,7 @@ const HomeScreen = () => {
     }, 1000);
   };
 
-  // Add categorized tutors data
+  // Update tutorsByCategory object
   const tutorsByCategory = {
     Recommended: {
       title: "Recommended Tutors",
@@ -49,54 +49,134 @@ const HomeScreen = () => {
           affiliation: 'Harvard University',
           specialization: 'Mathematics',
           rating: 4.9,
-          reviews: 128
+          reviews: 128,
+          price: 75
         },
-        // Add more recommended tutors...
+        {
+          id: '2',
+          name: 'Prof. David Chen',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'MIT',
+          specialization: 'Computer Science',
+          rating: 4.8,
+          reviews: 156,
+          price: 85
+        },
+        {
+          id: '3',
+          name: 'Dr. Lisa Wang',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'Stanford University',
+          specialization: 'Physics',
+          rating: 4.7,
+          reviews: 98,
+          price: 70
+        }
       ]
     },
     New: {
       title: "New Tutors",
       data: [
         {
-          id: '2',
+          id: '4',
           name: 'Dr. James Wilson',
           image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
           affiliation: 'Stanford University',
           specialization: 'Physics',
           rating: 4.7,
-          reviews: 14
+          reviews: 14,
+          price: 65
         },
-        // Add more new tutors...
+        {
+          id: '5',
+          name: 'Prof. Maria Garcia',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'UCLA',
+          specialization: 'Biology',
+          rating: 4.5,
+          reviews: 8,
+          price: 60
+        },
+        {
+          id: '6',
+          name: 'Dr. Alex Kim',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'UC Berkeley',
+          specialization: 'Chemistry',
+          rating: 4.6,
+          reviews: 11,
+          price: 55
+        }
       ]
     },
     Popular: {
       title: "Most Popular Tutors",
       data: [
         {
-          id: '3',
+          id: '7',
           name: 'Prof. Emma Davis',
           image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
           affiliation: 'MIT',
           specialization: 'Computer Science',
           rating: 4.8,
-          reviews: 256
+          reviews: 256,
+          price: 90
         },
-        // Add more popular tutors...
+        {
+          id: '8',
+          name: 'Dr. Robert Miller',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'CalTech',
+          specialization: 'Engineering',
+          rating: 4.9,
+          reviews: 189,
+          price: 95
+        },
+        {
+          id: '9',
+          name: 'Prof. Sofia Rodriguez',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'Princeton',
+          specialization: 'Economics',
+          rating: 4.7,
+          reviews: 167,
+          price: 80
+        }
       ]
     },
     'Best Rated': {
       title: "Top Rated Tutors",
       data: [
         {
-          id: '4',
+          id: '10',
           name: 'Dr. Michael Chen',
           image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
           affiliation: 'Yale University',
           specialization: 'Chemistry',
           rating: 5.0,
-          reviews: 89
+          reviews: 89,
+          price: 100
         },
-        // Add more best rated tutors...
+        {
+          id: '11',
+          name: 'Prof. Anna Lee',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'Stanford',
+          specialization: 'Data Science',
+          rating: 5.0,
+          reviews: 76,
+          price: 110
+        },
+        {
+          id: '12',
+          name: 'Dr. Thomas Brown',
+          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
+          affiliation: 'Harvard',
+          specialization: 'Statistics',
+          rating: 4.9,
+          reviews: 145,
+          price: 95
+        }
       ]
     }
   };
@@ -180,7 +260,10 @@ const HomeScreen = () => {
               <Text style={styles.sectionTitle}>{activeCategoryData.title}</Text>
               <TouchableOpacity 
                 style={styles.seeAllButton}
-                onPress={() => navigation.navigate('TutorsOfMonth', { category: activeCategory })}
+                onPress={() => navigation.navigate('TutorList', { 
+                  category: activeCategory,
+                  tutors: activeCategoryData.data // Pass the category-specific tutors
+                })}
               >
                 <Text style={styles.seeAllText}>See All</Text>
                 <ChevronRight size={20} color="#fff" />
@@ -213,7 +296,10 @@ const HomeScreen = () => {
               ))}
               <TouchableOpacity 
                 style={styles.viewAllButton}
-                onPress={() => navigation.navigate('TutorsOfMonth', { category: activeCategory })}
+                onPress={() => navigation.navigate('TutorList', { 
+                  category: activeCategory,
+                  tutors: activeCategoryData.data
+                })}
               >
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>

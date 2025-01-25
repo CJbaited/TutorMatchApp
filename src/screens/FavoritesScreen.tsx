@@ -1,40 +1,63 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
 import { Star, Heart } from 'lucide-react-native';
-import { colors, commonStyles } from '../theme/Theme';
+import { useFavorites } from '../contexts/FavoritesContext';
+import { useNavigation } from '@react-navigation/native';
 
 const FavoritesScreen = () => {
-  const favoriteTutors = [
-    { id: 1, name: 'John Doe', subject: 'Physics', rating: 4.5, price: 30, image: require('../assets/pexels-a-darmel-7322232.jpg') },
-    { id: 2, name: 'Jane Smith', subject: 'English', rating: 4.9, price: 40, image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg') },
-    // ...existing code...
-  ];
+  const { favorites, removeFavorite } = useFavorites();
+  const navigation = useNavigation();
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.glassContainer}>
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>My Favorite Tutors</Text>
-        
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {favoriteTutors.map((tutor) => (
-            <TouchableOpacity key={tutor.id} style={styles.tutorCard}>
-              <Image source={tutor.image} style={styles.tutorImage} />
-              <View style={styles.tutorInfo}>
-                <Text style={styles.tutorName}>{tutor.name}</Text>
-                <Text style={styles.tutorSubject}>{tutor.subject}</Text>
-                <View style={styles.ratingContainer}>
-                  <Star size={16} color={colors.primary} />
-                  <Text style={styles.ratingText}>{tutor.rating}</Text>
-                </View>
-                <Text style={styles.priceText}>${tutor.price}/hr</Text>
-              </View>
-              <TouchableOpacity style={styles.favoriteButton}>
-                <Heart size={24} color={colors.primary} fill={colors.primary} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </View>
+
+      <FlatList
+        data={favorites}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No favorite tutors yet</Text>
+          </View>
+        )}
+        renderItem={({ item: tutor }) => (
+          <TouchableOpacity 
+            style={styles.tutorCard}
+            onPress={() => navigation.navigate('TutorProfile', { tutor })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.imageContainer}>
+              <Image 
+                source={tutor.image} 
+                style={styles.tutorImage}
+                resizeMode="cover"
+              />
+            </View>
+            <View style={styles.tutorInfo}>
+              <Text style={styles.tutorName}>{tutor.name}</Text>
+              <Text style={styles.tutorAffiliation}>{tutor.affiliation}</Text>
+              <Text style={styles.tutorSpecialization}>{tutor.specialization}</Text>
+              <View style={styles.ratingPrice}>
+                <View style={styles.ratingContainer}>
+                  <Star size={16} color="#FFD700" />
+                  <Text style={styles.rating}>{tutor.rating}</Text>
+                  <Text style={styles.reviews}>({tutor.reviews})</Text>
+                </View>
+                <Text style={styles.price}>${tutor.price}/hr</Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={styles.favoriteButton}
+              onPress={() => removeFavorite(tutor.id)}
+            >
+              <Heart size={24} color="#084843" fill="#084843" />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+      />
     </SafeAreaView>
   );
 };
@@ -42,76 +65,106 @@ const FavoritesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e0f7fa',
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    backgroundColor: '#F8F9FA',
+    marginTop: Platform.OS === 'android' ? 42: 0,
   },
-  glassContainer: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20,
-    flex: 1,
-    padding: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 20,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
+  listContainer: {
+    padding: 16,
   },
   tutorCard: {
     flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 10,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  imageContainer: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#F0F0F0',
   },
   tutorImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: '100%',
+    height: '150%',
   },
   tutorInfo: {
     flex: 1,
-    marginLeft: 15,
-    justifyContent: 'center',
+    padding: 12,
   },
   tutorName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
   },
-  tutorSubject: {
+  tutorAffiliation: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
+    color: '#666',
+    marginBottom: 4,
+  },
+  tutorSpecialization: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  ratingPrice: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
   },
-  ratingText: {
-    marginLeft: 4,
-    color: colors.textPrimary,
-  },
-  priceText: {
+  rating: {
     fontSize: 14,
-    color: colors.primary,
+    fontWeight: '500',
+    color: '#333',
+    marginLeft: 4,
+  },
+  reviews: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 4,
+  },
+  price: {
+    fontSize: 16,
     fontWeight: '600',
-    marginTop: 4,
+    color: '#084843',
   },
   favoriteButton: {
-    padding: 10,
+    padding: 12,
+    justifyContent: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
   },
 });
 

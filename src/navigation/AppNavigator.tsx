@@ -15,6 +15,7 @@ import RegistrationCompleteScreen from '../screens/RegistrationCompleteScreen';
 import BottomTabNavigator from './BottomTabNavigator';
 import TutorProfileScreen from '../screens/TutorProfileScreen';
 import ChatScreen from '../screens/ChatScreen';
+import TutorList from '../screens/TutorList';
 
 const Stack = createNativeStackNavigator();
 
@@ -54,6 +55,11 @@ const AppNavigator = ({ initialRouteName = "Welcome" }) => {
           title: route.params?.name || 'Chat',
           headerShadowVisible: false,
         })}
+      />
+      <Stack.Screen 
+        name="TutorList" 
+        component={TutorList}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
