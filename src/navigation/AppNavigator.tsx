@@ -16,6 +16,13 @@ import BottomTabNavigator from './BottomTabNavigator';
 import TutorProfileScreen from '../screens/TutorProfileScreen';
 import ChatScreen from '../screens/ChatScreen';
 import TutorList from '../screens/TutorList';
+import SettingsScreen from '../screens/SettingsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import BookingCalendarScreen from '../screens/BookingCalendarScreen';
+import PaymentScreen from '../screens/PaymentScreen';
+import BookingConfirmationScreen from '../screens/BookingConfirmationScreen';
+import BookingSuccessScreen from '../screens/BookingSuccessScreen';
+import BookingsScreen from '../screens/BookingsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,6 +41,7 @@ const AppNavigator = ({ initialRouteName = "Welcome" }) => {
       <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
       <Stack.Screen name="RegistrationComplete" component={RegistrationCompleteScreen} />
       <Stack.Screen name="Home" component={BottomTabNavigator} />
+      <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
       {/* Direct route to HomeScreen for development */}
       <Stack.Screen
         name="DevHome"
@@ -60,6 +68,59 @@ const AppNavigator = ({ initialRouteName = "Welcome" }) => {
         name="TutorList" 
         component={TutorList}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          headerShadowVisible: false,
+          headerTitle: 'Settings',
+          headerStyle: {
+            backgroundColor: '#F8F9FA',
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          headerShadowVisible: false,
+          headerTitle: 'Profile',
+          headerStyle: {
+            backgroundColor: '#F8F9FA',
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="BookingCalendar" 
+        component={BookingCalendarScreen}
+        options={{ title: 'Select Time' }}
+      />
+      <Stack.Screen 
+        name="Payment" 
+        component={PaymentScreen}
+        options={{ title: 'Payment' }}
+      />
+      <Stack.Screen 
+        name="BookingConfirmation" 
+        component={BookingConfirmationScreen}
+        options={{ title: 'Confirm Booking' }}
+      />
+      <Stack.Screen 
+        name="BookingSuccess" 
+        component={BookingSuccessScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Bookings" 
+        component={BookingsScreen}
+        options={{
+          headerTitle: 'My Bookings',
+          headerShadowVisible: false,
+          headerStyle: {
+            backgroundColor: '#F8F9FA',
+          }
+        }}
       />
     </Stack.Navigator>
   );

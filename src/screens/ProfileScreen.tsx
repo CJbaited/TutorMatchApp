@@ -1,33 +1,113 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
-import { Settings, User, Calendar, Clock, CreditCard, HelpCircle, LogOut } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  Image, 
+  TouchableOpacity, 
+  ScrollView, 
+  TextInput,
+  Platform,
+  Alert
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Camera, Edit2 } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
 
 const ProfileScreen = () => {
-  const menuItems = [
-    { icon: User, title: 'Account' },
-    { icon: Calendar, title: 'Calendar' },
-    { icon: Clock, title: 'History' },
-    { icon: CreditCard, title: 'Payment' },
-    { icon: HelpCircle, title: 'Help' },
-    { icon: LogOut, title: 'Logout' },
-  ];
+  const [profileData, setProfileData] = useState({
+    name: 'John Doe',
+    email: 'johndoe@example.com',
+    phone: '+1 234 567 890',
+    location: 'New York, USA',
+    bio: 'Mathematics tutor specializing in calculus and algebra.',
+    subjects: ['Mathematics', 'Physics'],
+    education: 'MSc in Mathematics',
+    experience: '5 years'
+  });
+
+  const handleUpdateProfile = () => {
+    Alert.alert('Success', 'Profile updated successfully');
+  };
+
+  const handleImagePicker = () => {
+    Alert.alert('Coming Soon', 'Image upload functionality will be available soon');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <View style={styles.header}>
-          <Image source={{ uri: 'https://via.placeholder.com/100' }} style={styles.profileImage} />
-          <Text style={styles.name}>John Doe</Text>
-          <Text style={styles.email}>johndoe@example.com</Text>
-        </View>
-        <View style={styles.menu}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity key={index} style={styles.menuItem}>
-              <item.icon color={colors.primary} size={24} />
-              <Text style={styles.menuItemText}>{item.title}</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.imageSection}>
+          <View style={styles.imageContainer}>
+            <Image 
+              source={{ uri: 'https://via.placeholder.com/150' }} 
+              style={styles.profileImage} 
+            />
+            <TouchableOpacity 
+              style={styles.cameraButton}
+              onPress={handleImagePicker}
+            >
+              <Camera size={20} color="#FFF" />
             </TouchableOpacity>
-          ))}
+          </View>
+        </View>
+
+        <View style={styles.formSection}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              value={profileData.name}
+              onChangeText={(text) => setProfileData({...profileData, name: text})}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={profileData.email}
+              keyboardType="email-address"
+              editable={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              value={profileData.phone}
+              keyboardType="phone-pad"
+              onChangeText={(text) => setProfileData({...profileData, phone: text})}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              value={profileData.location}
+              onChangeText={(text) => setProfileData({...profileData, location: text})}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Bio</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={profileData.bio}
+              onChangeText={(text) => setProfileData({...profileData, bio: text})}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={styles.updateButton}
+            onPress={handleUpdateProfile}
+          >
+            <Text style={styles.updateButtonText}>Update Profile</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -37,46 +117,81 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F8F9FA',
   },
-  scrollViewContent: {
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  imageSection: {
+    alignItems: 'center',
     paddingVertical: 20,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 20,
+  imageContainer: {
+    position: 'relative',
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#FFF',
   },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.primary,
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#FFF',
   },
-  email: {
-    fontSize: 16,
-    color: '#888',
+  formSection: {
+    paddingHorizontal: 16,
   },
-  menu: {
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+  inputGroup: {
+    marginBottom: 16,
   },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 8,
   },
-  menuItemText: {
-    marginLeft: 15,
+  input: {
+    backgroundColor: '#FFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
     fontSize: 16,
     color: '#333',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  updateButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  updateButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

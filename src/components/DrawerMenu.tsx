@@ -31,10 +31,11 @@ const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
 
   const menuOptions: MenuOption[] = [
     { label: 'Profile', onPress: () => navigation.navigate('Profile') },
+    { label: 'My Bookings', onPress: () => navigation.navigate('Bookings') },
     { label: 'Settings', onPress: () => navigation.navigate('Settings') },
     { label: 'FAQ', onPress: () => navigation.navigate('FAQ') },
-    { label: 'Privacy Policy', onPress: () => navigation.navigate('PrivacyPolicy') },
-    { label: 'Terms of Service', onPress: () => navigation.navigate('TermsOfService') },
+    //{ label: 'Privacy Policy', onPress: () => navigation.navigate('PrivacyPolicy') },
+    //{ label: 'Terms of Service', onPress: () => navigation.navigate('TermsOfService') },
   ];
 
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;

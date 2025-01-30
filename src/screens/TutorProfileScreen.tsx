@@ -61,6 +61,14 @@ const TutorProfileScreen = ({ route }) => {
     }
   };
 
+  const handleBooking = () => {
+    navigation.navigate('BookingCalendar', {
+      tutorId: tutor.id,
+      tutorName: tutor.name,
+      price: tutor.price
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainWrapper}>
@@ -151,7 +159,7 @@ const TutorProfileScreen = ({ route }) => {
         >
           <MessageCircle size={28} color="#084843" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bookButton}>
+        <TouchableOpacity style={styles.bookButton} onPress={handleBooking}>
           <Calendar size={28} color="#fff" />
           <Text style={styles.bookButtonText}>Book Session</Text>
         </TouchableOpacity>

@@ -5,15 +5,18 @@ import { StyleSheet } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { ChatProvider } from './src/context/ChatContext';
 import { FavoritesProvider } from './src/contexts/FavoritesContext';
+import { BookingProvider } from './src/contexts/BookingContext';
 
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <FavoritesProvider>
         <ChatProvider>
-          <NavigationContainer>
-            <AppNavigator initialRouteName="DevHome" />
-          </NavigationContainer>
+          <BookingProvider>
+            <NavigationContainer>
+              <AppNavigator initialRouteName="DevHome" />
+            </NavigationContainer>
+          </BookingProvider>
         </ChatProvider>
       </FavoritesProvider>
     </GestureHandlerRootView>
