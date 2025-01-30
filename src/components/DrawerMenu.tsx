@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { X, ChevronRight } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../contexts/AuthContext';
+import supabase from '../services/supabase';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
@@ -28,14 +30,54 @@ type DrawerMenuProps = {
 
 const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
   const navigation = useNavigation();
+  const { signOut } = useAuth();
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile) {
+        setUserName(profile.name || user.email);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }],
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const menuOptions: MenuOption[] = [
     { label: 'Profile', onPress: () => navigation.navigate('Profile') },
     { label: 'My Bookings', onPress: () => navigation.navigate('Bookings') },
     { label: 'Settings', onPress: () => navigation.navigate('Settings') },
     { label: 'FAQ', onPress: () => navigation.navigate('FAQ') },
-    //{ label: 'Privacy Policy', onPress: () => navigation.navigate('PrivacyPolicy') },
-    //{ label: 'Terms of Service', onPress: () => navigation.navigate('TermsOfService') },
+    { 
+      label: 'Logout', 
+      onPress: handleLogout,
+      danger: true // Add this to style differently
+    },
   ];
 
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
@@ -131,7 +173,7 @@ const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
               source={require('../assets/pexels-anastasia-shuraeva-5704849.jpg')}
               style={styles.avatar}
             />
-            <Text style={styles.userName}>John Doe</Text>
+            <Text style={styles.userName}>{userName}</Text>
           </View>
         </View>
 
@@ -141,11 +183,15 @@ const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
               key={index}
               style={({ pressed }) => [
                 styles.menuItem,
-                pressed && styles.menuItemPressed
+                pressed && styles.menuItemPressed,
+                option.danger && styles.menuItemDanger
               ]}
               onPress={option.onPress}
             >
-              <Text style={styles.menuItemText}>{option.label}</Text>
+              <Text style={[
+                styles.menuItemText,
+                option.danger && styles.menuItemTextDanger
+              ]}>{option.label}</Text>
               <ChevronRight size={20} color="#666" />
             </Pressable>
           ))}
@@ -224,6 +270,14 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 16,
     color: '#333',
+  },
+  menuItemDanger: {
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    marginTop: 'auto', // Push to bottom
+  },
+  menuItemTextDanger: {
+    color: '#FF4444',
   },
 });
 

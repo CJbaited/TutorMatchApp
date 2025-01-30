@@ -9,9 +9,36 @@ export function SignUpScreen({ navigation }: { navigation: any }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSignUp = async () => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) Alert.alert('Error', error.message);
-    else Alert.alert('Success', 'Check your email for confirmation link');
+    try {
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', email)
+        .limit(1)
+        .single();
+
+      if (existingUser) {
+        Alert.alert(
+          'Account Exists',
+          'An account with this email already exists. Please login instead.',
+          [
+            {
+              text: 'Go to Login',
+              onPress: () => navigation.navigate('Login')
+            }
+          ]
+        );
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+
+      Alert.alert('Success', 'Check your email for confirmation link');
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'facebook') => {

@@ -10,22 +10,42 @@ export function LoginScreen({ navigation }: { navigation: any }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
-    const user = data?.user;
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      const { data: profile } = await supabase
+    try {
+      const { error, data } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+      
+      if (error) throw error;
+
+      // Check if user profile exists
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', data.user.id)
+        .limit(1)
         .single();
 
-      if (!profile) {
-        navigation.navigate('RoleSelection');
-      } else {
-        navigation.navigate('Home');
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
       }
+
+      // Navigate based on profile existence
+      if (!profile) {
+        // First time user - go to onboarding
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'RoleSelection' }]
+        });
+      } else {
+        // Existing user - go directly to home
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainApp' }] // Changed from DevHome to MainApp
+        });
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
     }
   };
 

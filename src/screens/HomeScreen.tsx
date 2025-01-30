@@ -5,6 +5,7 @@ import { Menu, Bell, ChevronRight, Star } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import {HomeSkeleton, TutorCardSkeleton} from '../components/HomeSkeleton';
 import DrawerMenu from '../components/DrawerMenu';
+import  supabase  from '../services/supabase';
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.7;
@@ -18,15 +19,74 @@ const HomeScreen = () => {
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Recommended');
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [userPreferences, setUserPreferences] = useState(null);
+  const [tutors, setTutors] = useState([]);
   const navigation = useNavigation();
   const scrollViewRef = useRef(null);
 
-  // Simulate initial loading
   useEffect(() => {
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
+    fetchUserPreferences();
   }, []);
+
+  const fetchUserPreferences = async () => {
+    try {
+      setIsLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) throw new Error('No authenticated user');
+
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (error) throw error;
+      
+      const profile = profiles?.[0];
+      if (!profile) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'RoleSelection' }]
+        });
+        return;
+      }
+
+      setUserPreferences(profile);
+      await fetchTutors(profile.subjects || []);
+    } catch (error) {
+      console.error('Error fetching preferences:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchTutors = async (subjects: string[]) => {
+    try {
+      if (!subjects.length) {
+        // Fetch all tutors if no subjects selected
+        const { data, error } = await supabase
+          .from('tutors')
+          .select('*')
+          .order('rating', { ascending: false });
+
+        if (error) throw error;
+        setTutors(data);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('tutors')
+        .select('*')
+        .contains('specialization', subjects)
+        .order('rating', { ascending: false });
+
+      if (error) throw error;
+      setTutors(data);
+    } catch (error) {
+      console.error('Error fetching tutors:', error);
+    }
+  };
 
   // Simulate category change loading
   const handleCategoryChange = (category) => {
@@ -41,143 +101,21 @@ const HomeScreen = () => {
   const tutorsByCategory = {
     Recommended: {
       title: "Recommended Tutors",
-      data: [
-        {
-          id: '1',
-          name: 'Dr. Sarah Johnson',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'Harvard University',
-          specialization: 'Mathematics',
-          rating: 4.9,
-          reviews: 128,
-          price: 75
-        },
-        {
-          id: '2',
-          name: 'Prof. David Chen',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'MIT',
-          specialization: 'Computer Science',
-          rating: 4.8,
-          reviews: 156,
-          price: 85
-        },
-        {
-          id: '3',
-          name: 'Dr. Lisa Wang',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'Stanford University',
-          specialization: 'Physics',
-          rating: 4.7,
-          reviews: 98,
-          price: 70
-        }
-      ]
+      data: tutors.filter(t => t.rating >= 4.5)
     },
     New: {
       title: "New Tutors",
-      data: [
-        {
-          id: '4',
-          name: 'Dr. James Wilson',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'Stanford University',
-          specialization: 'Physics',
-          rating: 4.7,
-          reviews: 14,
-          price: 65
-        },
-        {
-          id: '5',
-          name: 'Prof. Maria Garcia',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'UCLA',
-          specialization: 'Biology',
-          rating: 4.5,
-          reviews: 8,
-          price: 60
-        },
-        {
-          id: '6',
-          name: 'Dr. Alex Kim',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'UC Berkeley',
-          specialization: 'Chemistry',
-          rating: 4.6,
-          reviews: 11,
-          price: 55
-        }
-      ]
+      data: tutors.sort((a, b) => 
+        new Date(b.joined_date).getTime() - new Date(a.joined_date).getTime()
+      ).slice(0, 5)
     },
     Popular: {
       title: "Most Popular Tutors",
-      data: [
-        {
-          id: '7',
-          name: 'Prof. Emma Davis',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'MIT',
-          specialization: 'Computer Science',
-          rating: 4.8,
-          reviews: 256,
-          price: 90
-        },
-        {
-          id: '8',
-          name: 'Dr. Robert Miller',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'CalTech',
-          specialization: 'Engineering',
-          rating: 4.9,
-          reviews: 189,
-          price: 95
-        },
-        {
-          id: '9',
-          name: 'Prof. Sofia Rodriguez',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'Princeton',
-          specialization: 'Economics',
-          rating: 4.7,
-          reviews: 167,
-          price: 80
-        }
-      ]
+      data: tutors.sort((a, b) => b.reviews - a.reviews).slice(0, 5)
     },
     'Best Rated': {
       title: "Top Rated Tutors",
-      data: [
-        {
-          id: '10',
-          name: 'Dr. Michael Chen',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'Yale University',
-          specialization: 'Chemistry',
-          rating: 5.0,
-          reviews: 89,
-          price: 100
-        },
-        {
-          id: '11',
-          name: 'Prof. Anna Lee',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'Stanford',
-          specialization: 'Data Science',
-          rating: 5.0,
-          reviews: 76,
-          price: 110
-        },
-        {
-          id: '12',
-          name: 'Dr. Thomas Brown',
-          image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-          affiliation: 'Harvard',
-          specialization: 'Statistics',
-          rating: 4.9,
-          reviews: 145,
-          price: 95
-        }
-      ]
+      data: tutors.sort((a, b) => b.rating - a.rating).slice(0, 5)
     }
   };
 

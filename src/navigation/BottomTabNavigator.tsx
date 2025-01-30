@@ -13,12 +13,12 @@ const Tab = createBottomTabNavigator();
 const BottomTabNavigator = () => {
   return (
     <Tab.Navigator
-      initialRouteName="Home"
+      initialRouteName="HomeTab"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ color, size }) => {
           const iconSize = 24;
           switch (route.name) {
-            case 'Home':
+            case 'HomeTab':
               return <Home size={iconSize} color={color} />;
             case 'Explore':
               return <Search size={iconSize} color={color} />;
@@ -36,7 +36,7 @@ const BottomTabNavigator = () => {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="HomeTab" component={HomeScreen} options={{tabBarLabel: "Home"}} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
       <Tab.Screen name="Favorites" component={FavoritesScreen} />
       <Tab.Screen name="Messages" component={MessagesScreen} />

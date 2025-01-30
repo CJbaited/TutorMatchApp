@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useAuth } from '../contexts/AuthContext';
+import LoadingScreen from '../screens/LoadingScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
@@ -23,16 +25,67 @@ import PaymentScreen from '../screens/PaymentScreen';
 import BookingConfirmationScreen from '../screens/BookingConfirmationScreen';
 import BookingSuccessScreen from '../screens/BookingSuccessScreen';
 import BookingsScreen from '../screens/BookingsScreen';
+import  supabase  from '../services/supabase';
 
 const Stack = createNativeStackNavigator();
 
-const AppNavigator = ({ initialRouteName = "Welcome" }) => {
+const AppNavigator = () => {
+  const { user, loading } = useAuth();
+  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkUserProfile();
+  }, [user]);
+
+  const checkUserProfile = async () => {
+    if (!user) {
+      setHasProfile(false);
+      return;
+    }
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .limit(1)
+        .single();
+
+      setHasProfile(!!profile);
+    } catch (error) {
+      console.error('Error checking profile:', error);
+      setHasProfile(false);
+    }
+  };
+
+  if (loading || hasProfile === null) {
+    return <LoadingScreen />;
+  }
+
   return (
-    <Stack.Navigator initialRouteName={initialRouteName}>
-      <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="SignUp" component={SignUpScreen} />
-      <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
+    <Stack.Navigator initialRouteName={user ? (hasProfile ? 'MainApp' : 'RoleSelection') : 'Welcome'}>
+      <Stack.Screen 
+        name="Welcome" 
+        component={WelcomeScreen}
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="Login" 
+        component={LoginScreen}
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="SignUp" 
+        component={SignUpScreen}
+        options={{ headerShown: false }} 
+      />
+      
+      {/* Onboarding Screens */}
+      <Stack.Screen 
+        name="RoleSelection" 
+        component={RoleSelectionScreen}
+        options={{ headerShown: false }} 
+      />
       <Stack.Screen name="SubjectSelection" component={SubjectSelectionScreen} />
       <Stack.Screen name="AreaSelection" component={AreaSelectionScreen} />
       <Stack.Screen name="FormatSelection" component={FormatSelectionScreen} />
@@ -40,22 +93,11 @@ const AppNavigator = ({ initialRouteName = "Welcome" }) => {
       <Stack.Screen name="FrequencySelection" component={FrequencySelectionScreen} />
       <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
       <Stack.Screen name="RegistrationComplete" component={RegistrationCompleteScreen} />
-      <Stack.Screen name="Home" component={BottomTabNavigator} />
+      
+      {/* Main App Screens */}
+      <Stack.Screen name="MainApp" component={BottomTabNavigator} options={{headerShown: false}}/>
       <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
-      {/* Direct route to HomeScreen for development */}
-      <Stack.Screen
-        name="DevHome"
-        component={BottomTabNavigator}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen 
-        name="TutorProfile" 
-        component={TutorProfileScreen} 
-        options={{ 
-          headerShown: false,
-          presentation: 'modal'
-        }}
-      />
+      <Stack.Screen name="TutorProfile" component={TutorProfileScreen} options={{headerShown: false, presentation: 'modal'}}/>
       <Stack.Screen 
         name="Chat" 
         component={ChatScreen}

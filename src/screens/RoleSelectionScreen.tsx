@@ -1,16 +1,42 @@
 // filepath: /c:/Users/PC/Documents/TutorMatchApp/src/screens/RoleSelectionScreen.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import 'tailwindcss/tailwind.css';
+import supabase from '../services/supabase';
 
 const RoleSelectionScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
-  const handleRoleSelection = (role: string) => {
-    navigation.navigate('SubjectSelection', { role });
+  const handleRoleSelection = async (role: string) => {
+    if (role === 'tutor') {
+      Alert.alert('Coming Soon', 'Tutor registration will be available soon!');
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) throw new Error('No authenticated user');
+
+      const { error } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            user_id: user.id,
+            role: role,
+            created_at: new Date().toISOString()
+          }
+        ]);
+
+      if (error) throw error;
+
+      navigation.navigate('SubjectSelection', { role });
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
   };
 
   return (

@@ -11,9 +11,9 @@ const BookingSuccessScreen = () => {
       index: 0,
       routes: [
         { 
-          name: 'DevHome', // or 'Home' based on your initial route
+          name: 'MainApp', // or 'Home' based on your initial route
           params: {
-            screen: 'Home' // This specifies the initial tab
+            screen: 'HomeTab' // This specifies the initial tab
           }
         }
       ],
