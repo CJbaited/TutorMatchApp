@@ -53,7 +53,18 @@ const HomeScreen = () => {
       }
 
       setUserPreferences(profile);
-      await fetchTutors(profile.subjects || []);
+
+      // Parse subjects if needed and pass to fetchTutors
+      const subjects = profile.subjects 
+        ? (Array.isArray(profile.subjects) 
+            ? profile.subjects 
+            : typeof profile.subjects === 'string'
+              ? JSON.parse(profile.subjects)
+              : [])
+        : [];
+
+      await fetchTutors(subjects);
+
     } catch (error) {
       console.error('Error fetching preferences:', error);
     } finally {
@@ -61,30 +72,44 @@ const HomeScreen = () => {
     }
   };
 
-  const fetchTutors = async (subjects: string[]) => {
+  const fetchTutors = async (subjects?: string | string[]) => {
     try {
-      if (!subjects.length) {
-        // Fetch all tutors if no subjects selected
-        const { data, error } = await supabase
-          .from('tutors')
-          .select('*')
-          .order('rating', { ascending: false });
+      // Convert subjects to array if it's a string
+      const subjectArray = Array.isArray(subjects) 
+        ? subjects
+        : typeof subjects === 'string' 
+          ? [subjects]
+          : [];
 
-        if (error) throw error;
-        setTutors(data);
-        return;
-      }
-
-      const { data, error } = await supabase
+      // Return all tutors if no subjects selected
+      const { data: allTutors, error } = await supabase
         .from('tutors')
         .select('*')
-        .contains('specialization', subjects)
         .order('rating', { ascending: false });
 
       if (error) throw error;
-      setTutors(data);
+
+      if (subjectArray.length === 0) {
+        setTutors(allTutors || []);
+        return;
+      }
+
+      // Filter tutors based on specialization match with user preferences
+      const filteredTutors = allTutors.filter(tutor => {
+        const tutorSpecs = Array.isArray(tutor.specialization) 
+          ? tutor.specialization 
+          : [tutor.specialization];
+        
+        return subjectArray.some(subject => 
+          tutorSpecs.includes(subject)
+        );
+      });
+
+      setTutors(filteredTutors);
+
     } catch (error) {
       console.error('Error fetching tutors:', error);
+      setTutors([]);
     }
   };
 
@@ -97,7 +122,7 @@ const HomeScreen = () => {
     }, 1000);
   };
 
-  // Update tutorsByCategory object
+  // Update tutorsByCategory to only show filtered tutors
   const tutorsByCategory = {
     Recommended: {
       title: "Recommended Tutors",
@@ -105,9 +130,9 @@ const HomeScreen = () => {
     },
     New: {
       title: "New Tutors",
-      data: tutors.sort((a, b) => 
-        new Date(b.joined_date).getTime() - new Date(a.joined_date).getTime()
-      ).slice(0, 5)
+      data: tutors
+        .sort((a, b) => new Date(b.joined_date).getTime() - new Date(a.joined_date).getTime())
+        .slice(0, 5)
     },
     Popular: {
       title: "Most Popular Tutors",

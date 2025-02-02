@@ -5,7 +5,7 @@ import LoadingScreen from '../screens/LoadingScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
-import HomeScreen from '../screens/HomeScreen';
+import NameInputScreen from '../screens/NameInputScreen';
 import RoleSelectionScreen from '../screens/RoleSelectionScreen';
 import SubjectSelectionScreen from '../screens/SubjectSelectionScreen';
 import AreaSelectionScreen from '../screens/AreaSelectionScreen';
@@ -20,6 +20,7 @@ import ChatScreen from '../screens/ChatScreen';
 import TutorList from '../screens/TutorList';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import PreferencesScreen from '../screens/PreferencesScreen';
 import BookingCalendarScreen from '../screens/BookingCalendarScreen';
 import PaymentScreen from '../screens/PaymentScreen';
 import BookingConfirmationScreen from '../screens/BookingConfirmationScreen';
@@ -81,6 +82,7 @@ const AppNavigator = () => {
       />
       
       {/* Onboarding Screens */}
+      <Stack.Screen name="NameInput" component={NameInputScreen} options={{ headerShown: false }} />
       <Stack.Screen 
         name="RoleSelection" 
         component={RoleSelectionScreen}
@@ -131,6 +133,17 @@ const AppNavigator = () => {
           headerStyle: {
             backgroundColor: '#F8F9FA',
           }
+        }}
+      />
+      <Stack.Screen 
+        name="Preferences" 
+        component={PreferencesScreen}
+        options={{
+          headerTitle: 'My Preferences',
+          headerShadowVisible: false,
+          headerStyle: {
+            backgroundColor: '#F8F9FA',
+          },
         }}
       />
       <Stack.Screen 

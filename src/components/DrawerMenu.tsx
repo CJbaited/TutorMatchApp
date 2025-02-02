@@ -32,6 +32,8 @@ const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
   const navigation = useNavigation();
   const { signOut } = useAuth();
   const [userName, setUserName] = useState('');
+  const [profileImage, setProfileImage] = useState(null);
+
 
   useEffect(() => {
     fetchUserProfile();
@@ -50,6 +52,7 @@ const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
 
       if (profile) {
         setUserName(profile.name || user.email);
+        setProfileImage(profile.image_url);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -70,6 +73,7 @@ const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
 
   const menuOptions: MenuOption[] = [
     { label: 'Profile', onPress: () => navigation.navigate('Profile') },
+    { label: 'My Preferences', onPress: () => navigation.navigate('Preferences') },
     { label: 'My Bookings', onPress: () => navigation.navigate('Bookings') },
     { label: 'Settings', onPress: () => navigation.navigate('Settings') },
     { label: 'FAQ', onPress: () => navigation.navigate('FAQ') },
@@ -170,7 +174,10 @@ const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
           </TouchableOpacity>
           <View style={styles.userInfo}>
             <Image
-              source={require('../assets/pexels-anastasia-shuraeva-5704849.jpg')}
+              source={ profileImage 
+                ? { uri: profileImage }
+                : require('../assets/placeholder-person.jpg')
+            }
               style={styles.avatar}
             />
             <Text style={styles.userName}>{userName}</Text>
@@ -247,6 +254,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     marginRight: 12,
+    backgroundColor: '#F0F0F0', // Placeholder background
   },
   userName: {
     fontSize: 18,
