@@ -7,6 +7,7 @@ import { useFavorites } from '../contexts/FavoritesContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { formatSpecializations } from '../utils/formatSpecializations';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.55;
@@ -108,7 +109,9 @@ const TutorProfileScreen = ({ route }) => {
             <View style={styles.scrollContent}>
               <Text style={styles.name}>{tutor.name}</Text>
               <Text style={styles.affiliation}>{tutor.affiliation}</Text>
-              <Text style={styles.specialization}>{tutor.specialization}</Text>
+              <Text style={styles.specialization}>
+                {formatSpecializations(tutor.specialization, 'multiline')}
+              </Text>
             
               <View style={styles.infoSection}>
                 <Text style={styles.sectionTitle}>About</Text>                

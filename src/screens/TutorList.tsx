@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { ArrowLeft, Filter, SortDesc } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { formatSpecializations } from '../utils/formatSpecializations';
 
 const { width } = Dimensions.get('window');
 
@@ -24,7 +25,7 @@ type TutorListProps = {
         name: string;
         image: any;
         affiliation: string;
-        specialization: string;
+        specialization: string[];
         rating: number;
         reviews: number;
         price: number;
@@ -43,6 +44,8 @@ const TutorList = ({ route, navigation }: TutorListProps) => {
     'Popular': 'Popular',
     'Best Rated': 'Best Rated'
   };
+
+
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -88,7 +91,9 @@ const TutorList = ({ route, navigation }: TutorListProps) => {
             <View style={styles.tutorInfo}>
               <Text style={styles.tutorName}>{item.name}</Text>
               <Text style={styles.tutorAffiliation}>{item.affiliation}</Text>
-              <Text style={styles.tutorSpecialization}>{item.specialization}</Text>
+              <Text style={styles.tutorSpecialization}>
+                {formatSpecializations(item.specialization)}
+              </Text>
               <View style={styles.ratingPrice}>
                 <Text style={styles.rating}>⭐ {item.rating} ({item.reviews})</Text>
                 <Text style={styles.price}>${item.price}/hr</Text>

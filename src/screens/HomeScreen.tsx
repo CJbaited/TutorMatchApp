@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import {View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Platform, Dimensions, Pressable} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Menu, Bell, ChevronRight, Star } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {HomeSkeleton, TutorCardSkeleton} from '../components/HomeSkeleton';
 import DrawerMenu from '../components/DrawerMenu';
 import  supabase  from '../services/supabase';
+import { formatSpecializations } from '../utils/formatSpecializations';
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.7;
@@ -19,14 +20,32 @@ const HomeScreen = () => {
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Recommended');
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-  const [userPreferences, setUserPreferences] = useState(null);
+  const [userPreferences, setUserPreferences] = useState<{
+    subjects: string[];
+    subject_areas: Record<string, string[]>;
+  }>({
+    subjects: [],
+    subject_areas: {}
+  });
   const [tutors, setTutors] = useState([]);
   const navigation = useNavigation();
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
     fetchUserPreferences();
-  }, []);
+  }, []); // Initial fetch
+
+  useEffect(() => {
+    if (userPreferences.subjects) {
+      fetchTutors(userPreferences.subjects, userPreferences.subject_areas);
+    }
+  }, [userPreferences]); // Refetch when preferences change
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUserPreferences();
+    }, [])
+  );
 
   const fetchUserPreferences = async () => {
     try {
@@ -35,15 +54,14 @@ const HomeScreen = () => {
       
       if (!user) throw new Error('No authenticated user');
 
-      const { data: profiles, error } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
-        .limit(1);
+        .single();
 
       if (error) throw error;
-      
-      const profile = profiles?.[0];
+
       if (!profile) {
         navigation.reset({
           index: 0,
@@ -52,9 +70,7 @@ const HomeScreen = () => {
         return;
       }
 
-      setUserPreferences(profile);
-
-      // Parse subjects if needed and pass to fetchTutors
+      // Parse preferences data
       const subjects = profile.subjects 
         ? (Array.isArray(profile.subjects) 
             ? profile.subjects 
@@ -63,7 +79,16 @@ const HomeScreen = () => {
               : [])
         : [];
 
-      await fetchTutors(subjects);
+      const subject_areas = profile.subject_areas
+        ? (typeof profile.subject_areas === 'string'
+            ? JSON.parse(profile.subject_areas)
+            : profile.subject_areas)
+        : {};
+
+      setUserPreferences({
+        subjects,
+        subject_areas
+      });
 
     } catch (error) {
       console.error('Error fetching preferences:', error);
@@ -72,16 +97,8 @@ const HomeScreen = () => {
     }
   };
 
-  const fetchTutors = async (subjects?: string | string[]) => {
+  const fetchTutors = async (subjects: string[], subject_areas: Record<string, string[]>) => {
     try {
-      // Convert subjects to array if it's a string
-      const subjectArray = Array.isArray(subjects) 
-        ? subjects
-        : typeof subjects === 'string' 
-          ? [subjects]
-          : [];
-
-      // Return all tutors if no subjects selected
       const { data: allTutors, error } = await supabase
         .from('tutors')
         .select('*')
@@ -89,19 +106,32 @@ const HomeScreen = () => {
 
       if (error) throw error;
 
-      if (subjectArray.length === 0) {
+      // Return all tutors if no preferences
+      if (!subjects.length) {
         setTutors(allTutors || []);
         return;
       }
 
-      // Filter tutors based on specialization match with user preferences
+      // Filter tutors based on subjects and areas
       const filteredTutors = allTutors.filter(tutor => {
-        const tutorSpecs = Array.isArray(tutor.specialization) 
-          ? tutor.specialization 
-          : [tutor.specialization];
-        
-        return subjectArray.some(subject => 
-          tutorSpecs.includes(subject)
+        // Check subject match
+        const hasMatchingSubject = subjects.some(subject => 
+          tutor.specialization.includes(subject)
+        );
+
+        if (!hasMatchingSubject) return false;
+
+        // Get all selected areas for matching subjects
+        const selectedAreas = subjects.reduce((areas, subject) => {
+          return [...areas, ...(subject_areas[subject] || [])];
+        }, []);
+
+        // If no specific areas selected, return true
+        if (selectedAreas.length === 0) return true;
+
+        // Check if tutor has any matching areas
+        return selectedAreas.some(area => 
+          tutor.subject_areas.includes(area)
         );
       });
 
@@ -248,7 +278,9 @@ const HomeScreen = () => {
                   <View style={styles.tutorInfo}>
                     <Text style={styles.tutorName}>{tutor.name}</Text>
                     <Text style={styles.tutorAffiliation}>{tutor.affiliation}</Text>
-                    <Text style={styles.tutorSpecialization}>{tutor.specialization}</Text>
+                    <Text style={styles.tutorSpecialization}>
+                      {formatSpecializations(tutor.specialization)}
+                    </Text>
                     <View style={styles.ratingContainer}>
                       <Star size={16} color="#FFD700" />
                       <Text style={styles.rating}>{tutor.rating}</Text>
