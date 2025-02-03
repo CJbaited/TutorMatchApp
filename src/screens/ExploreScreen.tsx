@@ -255,7 +255,7 @@ const ExploreScreen = () => {
                 tutors: allTutors
               })}
             >
-              <Text style={styles.seeAllText}>See More</Text>
+              <Text style={styles.seeAllText}>See All</Text>
               <ChevronRight size={20} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -300,7 +300,7 @@ const ExploreScreen = () => {
               style={styles.seeAllButton}
               onPress={() => navigation.navigate('Categories')}
             >
-              <Text style={styles.seeAllText}>See More</Text>
+              <Text style={styles.seeAllText}>See All</Text>
               <ChevronRight size={20} color="#fff" />
             </TouchableOpacity>
           </View>

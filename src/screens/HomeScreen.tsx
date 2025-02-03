@@ -237,7 +237,7 @@ const HomeScreen = () => {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{tutorsByCategory[activeCategory].title}</Text>
               <TouchableOpacity style={styles.seeAllButton}>
-                <Text style={styles.seeAllText}>See More</Text>
+                <Text style={styles.seeAllText}>See All</Text>
                 <ChevronRight size={20} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -258,7 +258,7 @@ const HomeScreen = () => {
                   tutors: activeCategoryData.data // Pass the category-specific tutors
                 })}
               >
-                <Text style={styles.seeAllText}>See More</Text>
+                <Text style={styles.seeAllText}>See All</Text>
                 <ChevronRight size={20} color="#fff" />
               </TouchableOpacity>
             </View>
