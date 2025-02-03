@@ -1,55 +1,248 @@
-import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Image, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TextInput, 
+  ScrollView, 
+  TouchableOpacity, 
+  Image, 
+  Platform,
+  ActivityIndicator 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, ChevronRight, Star } from 'lucide-react-native';
+import { Search, ChevronRight, Star, X } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { formatSpecializations } from '../utils/formatSpecializations';
+import { ExploreSkeleton } from '../components/ExploreSkeleton';
+import supabase from '../services/supabase';
+import debounce from 'lodash/debounce';
 
 const ExploreScreen = () => {
   const navigation = useNavigation();
-  
-  const featuredTutors = [
-    {
-      id: '1',
-      name: 'Dr. Sarah Johnson',
-      image: require('../assets/pexels-anastasia-shuraeva-5704849.jpg'),
-      affiliation: 'Harvard University',
-      specialization: 'Mathematics',
-      rating: 4.9,
-      reviews: 128,
-      price: 75
-    },
-    // Add more featured tutors...
-  ];
+  const [allTutors, setAllTutors] = useState([]);
+  const [topTutors, setTopTutors] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
 
   const categories = [
     { id: 1, name: 'English', color: '#084843' },
-    { id: 2, name: 'Math', color: '#084843' },
-    { id: 3, name: 'Chinese', color: '#084843' },
-    { id: 4, name: 'General Science', color: '#084843' },
+    { id: 2, name: 'Mathematics', color: '#084843' },
+    { id: 3, name: 'Chinese Language', color: '#084843' },
+    { id: 4, name: 'Test Preparation', color: '#084843' },
   ];
 
   const trendingSubjects = [
-    'Elementary English',
-    'College Algebra',
-    'Business Chinese',
+    'TOEIC',
+    'Algebra',
+    'Composition',
     'Physics',
-    'IELTS Preparation',
+    'IELTS',
     'Chemistry',
+    'TOEFL',
   ];
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setIsSearching(false);
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    setIsSearchLoading(true);
+    const lowerQuery = query.toLowerCase();
+
+    try {
+      const { data: tutors, error } = await supabase
+        .from('tutors')
+        .select('*');
+
+      if (error) throw error;
+
+      const filtered = tutors?.filter(tutor => {
+        // Search by tutor name
+        const nameMatch = tutor.name.toLowerCase().includes(lowerQuery);
+        
+        // Search by specialization (subjects)
+        const subjectMatch = tutor.specialization.some(
+          subject => subject.toLowerCase().includes(lowerQuery)
+        );
+
+        // Search by subject areas
+        const areaMatch = tutor.subject_areas?.some(
+          area => area.toLowerCase().includes(lowerQuery)
+        );
+
+        return nameMatch || subjectMatch || areaMatch;
+      });
+
+      setSearchResults(filtered || []);
+    } catch (error) {
+      console.error('Error searching tutors:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearchLoading(false);
+    }
+  };
+
+  // Create debounced search
+  const debouncedSearch = debounce(handleSearch, 500);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, []);
+
+  const fetchTutors = async () => {
+    try {
+      const { data: tutors, error } = await supabase
+        .from('tutors')
+        .select('*')
+        .order('rating', { ascending: false })
+        .order('reviews', { ascending: false });
+
+      if (error) throw error;
+
+      setAllTutors(tutors || []);
+      setTopTutors((tutors || []).slice(0, 5));
+    } catch (error) {
+      console.error('Error fetching tutors:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTutors();
+  }, []);
+
+  const handleCategoryPress = async (category: string) => {
+    try {
+      const { data: tutors, error } = await supabase
+        .from('tutors')
+        .select('*')
+        .contains('specialization', [category])
+        .order('rating', { ascending: false });
+
+      if (error) throw error;
+
+      navigation.navigate('TutorList', {
+        category: category,
+        title: `${category} Tutors`,
+        tutors: tutors || []
+      });
+    } catch (error) {
+      console.error('Error fetching tutors by category:', error);
+    }
+  };
+
+  const handleTrendingPress = async (subject: string) => {
+    try {
+      const { data: tutors, error } = await supabase
+        .from('tutors')
+        .select('*')
+        .contains('subject_areas', [subject])
+        .order('rating', { ascending: false });
+
+      if (error) throw error;
+
+      navigation.navigate('TutorList', {
+        category: subject,
+        title: `${subject} Tutors`,
+        tutors: tutors || []
+      });
+    } catch (error) {
+      console.error('Error fetching tutors by subject area:', error);
+    }
+  };
+  
+  const clearSearch = () => {
+    setSearchQuery('');
+    setIsSearching(false);
+    setSearchResults([]);
+  };
+
+  if (isLoading) {
+    return <ExploreSkeleton />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Search Header */}
       <View style={styles.searchContainer}>
         <Search size={20} color="#666" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search subjects or tutors..."
+          placeholder="Search tutors, subjects or areas..."
           placeholderTextColor="#666"
+          value={searchQuery}
+          onChangeText={(text) => {
+            setSearchQuery(text);
+            debouncedSearch(text);
+          }}
         />
+        {searchQuery ? (
+          <TouchableOpacity onPress={clearSearch}>
+            <X size={20} color="#666" />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {isSearching ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {isSearchLoading ? 'Searching...' : 'Search Results'}
+            </Text>
+            {isSearchLoading ? (
+              <ActivityIndicator color="#084843" style={styles.loader} />
+            ) : (
+              <View style={styles.searchResults}>
+                {searchResults.length > 0 ? (
+                  searchResults.map(tutor => (
+                    <TouchableOpacity
+                      key={tutor.id}
+                      style={[styles.tutorCard, styles.searchTutorCard]}
+                      onPress={() => navigation.navigate('TutorProfile', { tutor })}
+                    >
+                      <Image 
+                        source={{ uri: tutor.image_url }} 
+                        style={styles.searchTutorImage} 
+                      />
+                      <View style={styles.tutorInfo}>
+                        <Text style={styles.tutorName}>{tutor.name}</Text>
+                        <Text style={styles.tutorAffiliation}>
+                          {tutor.affiliation}
+                        </Text>
+                        <Text style={styles.tutorSpecialization}>
+                          {formatSpecializations(tutor.specialization)}
+                        </Text>
+                        <View style={styles.ratingContainer}>
+                          <Star size={16} color="#FFD700" />
+                          <Text style={styles.rating}>{tutor.rating}</Text>
+                          <Text style={styles.reviews}>
+                            ({tutor.reviews} reviews)
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={styles.noResults}>No tutors found</Text>
+                )}
+              </View>
+            )}
+          </View>
+      ) : (
+        <>
+          <ScrollView showsVerticalScrollIndicator={false}>
         {/* Featured Tutors Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -58,10 +251,11 @@ const ExploreScreen = () => {
               style={styles.seeAllButton}
               onPress={() => navigation.navigate('TutorList', { 
                 category: 'Featured',
-                tutors: featuredTutors
+                title: 'All Tutors',
+                tutors: allTutors
               })}
             >
-              <Text style={styles.seeAllText}>See All</Text>
+              <Text style={styles.seeAllText}>See More</Text>
               <ChevronRight size={20} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -71,17 +265,22 @@ const ExploreScreen = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.tutorsContainer}
           >
-            {featuredTutors.map(tutor => (
+            {topTutors.map(tutor => (
               <TouchableOpacity
                 key={tutor.id}
                 style={styles.tutorCard}
                 onPress={() => navigation.navigate('TutorProfile', { tutor })}
               >
-                <Image source={tutor.image} style={styles.tutorImage} />
+                <Image 
+                  source={{ uri: tutor.image_url }} 
+                  style={styles.tutorImage} 
+                />
                 <View style={styles.tutorInfo}>
                   <Text style={styles.tutorName}>{tutor.name}</Text>
                   <Text style={styles.tutorAffiliation}>{tutor.affiliation}</Text>
-                  <Text style={styles.tutorSpecialization}>{tutor.specialization}</Text>
+                  <Text style={styles.tutorSpecialization}>
+                    {formatSpecializations(tutor.specialization)}
+                  </Text>
                   <View style={styles.ratingContainer}>
                     <Star size={16} color="#FFD700" />
                     <Text style={styles.rating}>{tutor.rating}</Text>
@@ -90,15 +289,6 @@ const ExploreScreen = () => {
                 </View>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity 
-              style={styles.viewAllButton}
-              onPress={() => navigation.navigate('TutorList', { 
-                category: 'Featured',
-                tutors: featuredTutors
-              })}
-            >
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
           </ScrollView>
         </View>
 
@@ -119,6 +309,7 @@ const ExploreScreen = () => {
               <TouchableOpacity
                 key={category.id}
                 style={styles.categoryCard}
+                onPress={() => handleCategoryPress(category.name)}
               >
                 <Text style={styles.categoryText}>{category.name}</Text>
               </TouchableOpacity>
@@ -128,20 +319,26 @@ const ExploreScreen = () => {
 
         {/* Trending Subjects */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Trending Subjects</Text>
+          <Text style={styles.sectionTitle}>Trending Area's</Text>
           <View style={styles.trendingGrid}>
             {trendingSubjects.map((subject, index) => (
-              <TouchableOpacity key={index} style={styles.trendingCard}>
+              <TouchableOpacity 
+                key={index} 
+                style={styles.trendingCard}
+                onPress={() => handleTrendingPress(subject)}
+              >
                 <Text style={styles.trendingText}>{subject}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
+            </ScrollView>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -323,6 +520,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#666',
+  },
+  searchResults: {
+    gap: 16,
+  },
+  searchTutorCard: {
+    width: '100%',
+    flexDirection: 'row',
+    height: 120,
+  },
+  searchTutorImage: {
+    width: 100,
+    height: '100%',
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  loader: {
+    marginTop: 20,
+  },
+  noResults: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 16,
+    marginTop: 20,
   },
 });
 

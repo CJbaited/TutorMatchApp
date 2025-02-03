@@ -18,6 +18,7 @@ import BottomTabNavigator from './BottomTabNavigator';
 import TutorProfileScreen from '../screens/TutorProfileScreen';
 import ChatScreen from '../screens/ChatScreen';
 import TutorList from '../screens/TutorList';
+import CategoryScreen from '../screens/CategoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
@@ -145,6 +146,11 @@ const AppNavigator = () => {
             backgroundColor: '#F8F9FA',
           },
         }}
+      />
+      <Stack.Screen 
+        name="Categories" 
+        component={CategoryScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen 
         name="BookingCalendar" 

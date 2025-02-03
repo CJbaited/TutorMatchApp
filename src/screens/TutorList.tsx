@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,13 +7,16 @@ import {
   Image, 
   TouchableOpacity, 
   Dimensions,
-  Platform 
+  Platform,
+  ActivityIndicator 
 } from 'react-native';
 import { ArrowLeft, Filter, SortDesc } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatSpecializations } from '../utils/formatSpecializations';
+import SortFilterModal, { SortOption, Filters } from '../components/SortFilterModal';
 
 const { width } = Dimensions.get('window');
+const ITEMS_PER_PAGE = 20;
 
 type TutorListProps = {
   route: {
@@ -36,16 +39,105 @@ type TutorListProps = {
 };
 
 const TutorList = ({ route, navigation }: TutorListProps) => {
-  const { category, tutors } = route.params;
+  const { category, tutors: initialTutors } = route.params;
+  const [showModal, setShowModal] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('price_asc');
+  const [filters, setFilters] = useState<Filters>({
+    price: 2000,
+    distance: 5,
+    isRemoteOnly: false
+  });
   
+  // Add new states for pagination
+  const [filteredTutors, setFilteredTutors] = useState([]);
+  const [displayedTutors, setDisplayedTutors] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Apply filters and initial load
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, []);
+
+  const applyFiltersAndSort = () => {
+    let result = [...initialTutors];
+
+    // Apply price filter
+    result = result.filter(tutor => tutor.price <= filters.price);
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'price_asc':
+        result.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_desc':
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case 'distance_asc':
+        // Assuming tutors have a distance property
+        result = result.filter(tutor => (tutor.distance || 0) <= filters.distance);
+        result.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        break;
+      case 'remote':
+        result = result.filter(tutor => tutor.teaching_format === 'online');
+        break;
+    }
+
+    setFilteredTutors(result);
+    loadMoreTutors(result, 1); // Load first page
+  };
+
+  const loadMoreTutors = (tutors = filteredTutors, page = currentPage) => {
+    const start = (page - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    const newTutors = tutors.slice(start, end);
+
+    if (newTutors.length > 0) {
+      setDisplayedTutors(prev => page === 1 ? newTutors : [...prev, ...newTutors]);
+      setCurrentPage(page);
+      setHasMore(end < tutors.length);
+    } else {
+      setHasMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!isLoading && hasMore) {
+      setIsLoading(true);
+      setTimeout(() => {
+        loadMoreTutors(filteredTutors, currentPage + 1);
+        setIsLoading(false);
+      }, 500);
+    }
+  };
+
+  const renderFooter = () => {
+    if (!hasMore) {
+      return (
+        <View style={styles.endMessage}>
+          <Text style={styles.endMessageText}>No more tutors available</Text>
+        </View>
+      );
+    }
+
+    if (isLoading) {
+      return (
+        <View style={styles.loader}>
+          <ActivityIndicator size="small" color="#084843" />
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   const categoryTitles = {
     'Recommended': 'Recommended',
     'New': 'New',
     'Popular': 'Popular',
     'Best Rated': 'Best Rated'
   };
-
-
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -62,17 +154,17 @@ const TutorList = ({ route, navigation }: TutorListProps) => {
           </Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity 
+            style={[styles.iconButton, { marginLeft: 54 }]}
+            onPress={() => setShowModal(true)}
+          >
             <SortDesc size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.iconButton, { marginLeft: 8 }]}>
-            <Filter size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
 
       <FlatList
-        data={tutors}
+        data={displayedTutors}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         renderItem={({ item }) => (
@@ -101,6 +193,22 @@ const TutorList = ({ route, navigation }: TutorListProps) => {
             </View>
           </TouchableOpacity>
         )}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
+      />
+
+      <SortFilterModal
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+        onApply={() => {
+          applyFiltersAndSort();
+          setShowModal(false);
+        }}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        filters={filters}
+        setFilters={setFilters}
       />
     </SafeAreaView>
   );
@@ -204,6 +312,19 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingVertical: 8,
+  },
+  loader: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  endMessage: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  endMessageText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
   },
 });
 

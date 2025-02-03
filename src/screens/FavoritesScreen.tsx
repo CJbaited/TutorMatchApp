@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView
 import { Star, Heart } from 'lucide-react-native';
 import { useFavorites } from '../contexts/FavoritesContext';
 import { useNavigation } from '@react-navigation/native';
+import { formatSpecializations } from '../utils/formatSpecializations';
 
 const FavoritesScreen = () => {
   const { favorites, removeFavorite } = useFavorites();
@@ -39,7 +40,9 @@ const FavoritesScreen = () => {
             <View style={styles.tutorInfo}>
               <Text style={styles.tutorName}>{tutor.name}</Text>
               <Text style={styles.tutorAffiliation}>{tutor.affiliation}</Text>
-              <Text style={styles.tutorSpecialization}>{tutor.specialization}</Text>
+              <Text style={styles.tutorSpecialization}>
+                {formatSpecializations(tutor.specialization)}
+              </Text>
               <View style={styles.ratingPrice}>
                 <View style={styles.ratingContainer}>
                   <Star size={16} color="#FFD700" />
@@ -66,7 +69,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
-    marginTop: Platform.OS === 'android' ? 42: 0,
   },
   header: {
     paddingHorizontal: 16,
@@ -105,7 +107,7 @@ const styles = StyleSheet.create({
   },
   tutorImage: {
     width: '100%',
-    height: '150%',
+    height: '100%',
   },
   tutorInfo: {
     flex: 1,
