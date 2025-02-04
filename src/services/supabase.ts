@@ -36,7 +36,20 @@ const createTables = async () => {
         rating NUMERIC CHECK (rating >= 0 AND rating <= 5),
         reviews INTEGER DEFAULT 0,
         price NUMERIC NOT NULL,
-        joined_date TIMESTAMPTZ DEFAULT NOW()
+        joined_date TIMESTAMPTZ DEFAULT NOW(),
+        availability JSONB DEFAULT '{
+          "weeklySchedule": {
+            "0": {"available": false, "slots": []},
+            "1": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
+            "2": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
+            "3": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
+            "4": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
+            "5": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
+            "6": {"available": false, "slots": []}
+          }',
+          "exceptions": [],
+          "timezone": "UTC"
+        }'
       );
 
     `

@@ -70,6 +70,40 @@ const TutorProfileScreen = ({ route }) => {
     });
   };
 
+  const renderAvailability = () => {
+    if (!tutor.availability) return null;
+
+    const schedule = tutor.availability.weeklySchedule;
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return (
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Availability</Text>
+        <View style={styles.availabilityGrid}>
+          {days.map((day, index) => {
+            const daySchedule = schedule[index];
+            return (
+              <View key={day} style={styles.daySchedule}>
+                <Text style={styles.dayName}>{day}</Text>
+                <Text style={[
+                  styles.dayStatus,
+                  { color: daySchedule.available ? '#4CAF50' : '#FF0000' }
+                ]}>
+                  {daySchedule.available ? 'Available' : 'Off'}
+                </Text>
+                {daySchedule.available && daySchedule.slots.map((slot, i) => (
+                  <Text key={i} style={styles.timeSlot}>
+                    {slot.start} - {slot.end}
+                  </Text>
+                ))}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainWrapper}>
@@ -147,6 +181,8 @@ const TutorProfileScreen = ({ route }) => {
                   • Published educational content
                 </Text>
               </View>
+
+              {renderAvailability()}
 
               {/* Bottom padding for fixed buttons */}
               <View style={{ height: Platform.OS === 'ios' ? 120 : 100 }} />
@@ -337,6 +373,32 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#F0F0F0',
   },
+  availabilityGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    padding: 12,
+  },
+  daySchedule: {
+    flex: 1,
+    minWidth: '30%',
+    padding: 8,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+  },
+  dayName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  dayStatus: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  timeSlot: {
+    fontSize: 12,
+    color: '#666',
+  }
 });
 
 export default TutorProfileScreen;
