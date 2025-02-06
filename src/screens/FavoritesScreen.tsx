@@ -32,7 +32,7 @@ const FavoritesScreen = () => {
           >
             <View style={styles.imageContainer}>
               <Image 
-                source={tutor.image} 
+                source={{ uri: tutor.image_url }}  // Changed from tutor.image
                 style={styles.tutorImage}
                 resizeMode="cover"
               />
@@ -68,6 +68,7 @@ const FavoritesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: Platform.OS==='ios' ? 64: 42,
     backgroundColor: '#F8F9FA',
   },
   header: {
@@ -101,8 +102,8 @@ const styles = StyleSheet.create({
     }),
   },
   imageContainer: {
-    width: 100,
-    height: 100,
+    width: Platform.OS==='ios' ? 84: 100,
+    height: Platform.OS==='ios' ? 116: 124,
     backgroundColor: '#F0F0F0',
   },
   tutorImage: {

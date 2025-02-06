@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  Image, 
+  TouchableOpacity, 
+  SafeAreaView, 
+  Platform 
+} from 'react-native';
 import { colors } from '../theme/Theme';
 import { useChat } from '../context/ChatContext';
 import { useNavigation } from '@react-navigation/native';
@@ -51,7 +60,14 @@ const MessagesScreen = () => {
                 participantId: item.participantId
               })}
             >
-              <Image source={item.image} style={styles.avatar} />
+              <Image 
+                source={
+                  item.image_url 
+                    ? { uri: item.image_url }
+                    : require('../assets/placeholder-person.jpg')
+                }
+                style={styles.avatar}
+              />
               <View style={styles.chatInfo}>
                 <View style={styles.chatHeader}>
                   <Text style={styles.name}>{item.name}</Text>
@@ -134,6 +150,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
+    backgroundColor: '#F0F0F0',
   },
   chatInfo: {
     flex: 1,

@@ -175,7 +175,7 @@ const TutorList = ({ route, navigation }: TutorListProps) => {
           >
             <View style={styles.imageContainer}>
               <Image 
-                source={item.image} 
+                source={{ uri: item.image_url }}  // Changed from item.image
                 style={styles.tutorImage}
                 resizeMode="cover"
               />

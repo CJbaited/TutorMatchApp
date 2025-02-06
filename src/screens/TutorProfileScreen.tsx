@@ -31,19 +31,9 @@ const TutorProfileScreen = ({ route }) => {
     setIsFav(!isFav);
   };
   const handleStartChat = () => {
-    // Check if conversation already exists
-    const existingConversation = conversations.find(
-      conv => conv.participantId === tutor.id
-    );
-
-    if (existingConversation) {
-      // If exists, navigate to existing chat
-      navigation.navigate('Chat', {
-        conversationId: existingConversation.id,
-        participantId: tutor.id,
-      });
-    } else {
-      // If not exists, create new conversation
+    const existingConversation = conversations.find(c => c.participantId === tutor.id);
+    
+    if (!existingConversation) {
       const conversation = {
         id: Date.now(),
         participantId: tutor.id,
@@ -51,7 +41,7 @@ const TutorProfileScreen = ({ route }) => {
         lastMessage: '',
         time: 'New',
         unread: 0,
-        image: tutor.image,
+        image_url: tutor.image_url
       };
       
       addConversation(conversation);
@@ -108,7 +98,7 @@ const TutorProfileScreen = ({ route }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.mainWrapper}>
         <Image 
-          source={tutor.image} 
+          source={{ uri: tutor.image_url }}  // Changed from tutor.image
           style={styles.backgroundImage}
         />
 

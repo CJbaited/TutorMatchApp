@@ -274,7 +274,10 @@ const HomeScreen = () => {
                   style={styles.featuredTutorCard}
                   onPress={() => navigation.navigate('TutorProfile', { tutor })}
                 >
-                  <Image source={tutor.image} style={styles.featuredTutorImage} />
+                  <Image 
+                    source={{ uri: tutor.image_url }}  // Changed from tutor.image
+                    style={styles.featuredTutorImage} 
+                  />
                   <View style={styles.tutorInfo}>
                     <Text style={styles.tutorName}>{tutor.name}</Text>
                     <Text style={styles.tutorAffiliation}>{tutor.affiliation}</Text>
