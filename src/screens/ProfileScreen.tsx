@@ -19,6 +19,9 @@ const ProfileScreen = () => {
     email: '',
     phone: '',
     location: '',
+    city: '',
+    latitude: null,
+    longitude: null,
     bio: '',
     image_url: null
   });
@@ -47,6 +50,9 @@ const ProfileScreen = () => {
           email: user.email || '',
           phone: profile.phone || '',
           location: profile.location || '',
+          city: profile.city || '',
+          latitude: profile.latitude || null,
+          longitude: profile.longitude || null,
           bio: profile.bio || '',
           image_url: profile.image_url
         });
@@ -212,6 +218,20 @@ const ProfileScreen = () => {
           </View>
 
           <View style={styles.inputGroup}>
+            <Text style={styles.label}>Detected Location</Text>
+            <View style={styles.detectedLocation}>
+              <Text style={styles.locationText}>
+                {profileData.city ? `${profileData.city}` : 'Location not detected'}
+              </Text>
+              <Text style={styles.coordinatesText}>
+                {profileData.latitude && profileData.longitude 
+                  ? `${profileData.latitude.toFixed(4)}, ${profileData.longitude.toFixed(4)}`
+                  : ''}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Bio</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
@@ -316,6 +336,20 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  detectedLocation: {
+    backgroundColor: '#F0F0F0',
+    padding: 16,
+    borderRadius: 12,
+  },
+  locationText: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 4,
+  },
+  coordinatesText: {
+    fontSize: 14,
+    color: '#666',
   },
   updateButton: {
     backgroundColor: colors.primary,

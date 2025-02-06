@@ -15,8 +15,13 @@
         "backgroundColor": "#FFFFFF"
       }
     },
-    "web": {
-      "favicon": "/assets/favicon.png"
-    }
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow TutorMatch to use your location."
+        }
+      ]
+    ]
   }
 }

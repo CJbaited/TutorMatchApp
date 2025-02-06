@@ -268,13 +268,13 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: width * 0.3,
-    height: width * (Platform.OS === 'ios' ? 0.36 : 0.3),  //0.36,
+    height: width * (Platform.OS === 'ios' ? 0.41 : 0.3),  //0.36,
     backgroundColor: '#F0F0F0',
     overflow: 'hidden',
   },
   tutorImage: {
     width: '100%',
-    height: '100%',
+    height: Platform.OS==='ios' ? '110%': '100%',
   },
   tutorInfo: {
     flex: 1,

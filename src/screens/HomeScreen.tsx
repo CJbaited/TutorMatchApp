@@ -99,50 +99,82 @@ const HomeScreen = () => {
 
   const fetchTutors = async (subjects: string[], subject_areas: Record<string, string[]>) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user');
+  
+      // Get user location
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('latitude, longitude, preferred_radius, city')
+        .eq('user_id', user.id)
+        .single();
+  
+      // Fetch all tutors
       const { data: allTutors, error } = await supabase
         .from('tutors')
         .select('*')
         .order('rating', { ascending: false });
-
+  
       if (error) throw error;
-
-      // Return all tutors if no preferences
-      if (!subjects.length) {
-        setTutors(allTutors || []);
-        return;
-      }
-
-      // Filter tutors based on subjects and areas
+  
+      // Filter tutors based on location and preferences
       const filteredTutors = allTutors.filter(tutor => {
+        // If online teaching, don't filter by location
+        if (tutor.teaching_format === 'online') return true;
+  
+        // Calculate distance between user and tutor
+        const distance = calculateDistance(
+          userProfile.latitude,
+          userProfile.longitude,
+          tutor.latitude,
+          tutor.longitude
+        );
+  
+        // Check if within preferred radius
+        const withinRadius = distance <= userProfile.preferred_radius;
+  
         // Check subject match
         const hasMatchingSubject = subjects.some(subject => 
           tutor.specialization.includes(subject)
         );
-
+  
+        // Check areas if subject matches
         if (!hasMatchingSubject) return false;
-
-        // Get all selected areas for matching subjects
+  
         const selectedAreas = subjects.reduce((areas, subject) => {
           return [...areas, ...(subject_areas[subject] || [])];
         }, []);
-
-        // If no specific areas selected, return true
-        if (selectedAreas.length === 0) return true;
-
-        // Check if tutor has any matching areas
+  
+        // If no areas selected or online teaching, return location check
+        if (selectedAreas.length === 0) return withinRadius;
+  
+        // Check if tutor areas match user selected areas
         return selectedAreas.some(area => 
           tutor.subject_areas.includes(area)
-        );
+        ) && withinRadius;
       });
-
+  
       setTutors(filteredTutors);
-
+  
     } catch (error) {
       console.error('Error fetching tutors:', error);
       setTutors([]);
     }
   };
-
+  
+  // Haversine formula for calculating distance between coordinates
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance in km
+  };
+  
   // Simulate category change loading
   const handleCategoryChange = (category) => {
     setIsCategoryLoading(true);

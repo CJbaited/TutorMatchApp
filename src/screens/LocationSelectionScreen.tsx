@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
 import 'tailwindcss/tailwind.css';
 import { RootStackParamList } from '../navigation/types';
+import LocationService from '../utils/LocationService';
+import supabase  from '../services/supabase';
 
 const cities = [
   { label: 'Taipei', value: 'taipei' },
@@ -39,6 +41,33 @@ const LocationSelectionScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<LocationSelectionScreenRouteProp>();
   const { role, subject, area, format } = route.params;
+
+  useEffect(() => {
+    const getCurrentLocation = async () => {
+      const location = await LocationService.getCurrentLocation();
+      if (location) {
+        const city = await LocationService.getCityFromCoordinates(
+          location.latitude,
+          location.longitude
+        );
+
+        // Save to profile
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('profiles')
+            .update({
+              city,
+              latitude: location.latitude,
+              longitude: location.longitude
+            })
+            .eq('user_id', user.id);
+        }
+      }
+    };
+
+    getCurrentLocation();
+  }, []);
 
   const handleNext = () => {
     if (location) {
