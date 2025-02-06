@@ -527,11 +527,11 @@ const styles = StyleSheet.create({
   searchTutorCard: {
     width: '100%',
     flexDirection: 'row',
-    height: 120,
+    height: Platform.OS==='ios' ? 'auto': 'auto',
   },
   searchTutorImage: {
     width: 100,
-    height: '100%',
+    height: 'auto',
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
     borderTopRightRadius: 0,

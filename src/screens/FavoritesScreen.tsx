@@ -102,13 +102,13 @@ const styles = StyleSheet.create({
     }),
   },
   imageContainer: {
-    width: Platform.OS==='ios' ? 84: 100,
-    height: Platform.OS==='ios' ? 116: 124,
+    width: Platform.OS==='ios' ? 114: 100,
+    height: Platform.OS==='ios' ? 136: 124,
     backgroundColor: '#F0F0F0',
   },
   tutorImage: {
-    width: '100%',
-    height: '100%',
+    width: Platform.OS==='ios' ? '100%': '100%',
+    height: Platform.OS==='ios' ? '132%': '100%',
   },
   tutorInfo: {
     flex: 1,
