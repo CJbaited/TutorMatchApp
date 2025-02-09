@@ -15,6 +15,7 @@ import FrequencySelectionScreen from '../screens/FrequencySelectionScreen';
 import DurationSelectionScreen from '../screens/DurationSelectionScreen';
 import RegistrationCompleteScreen from '../screens/RegistrationCompleteScreen';
 import BottomTabNavigator from './BottomTabNavigator';
+import TutorTabNavigator from './TutorTabNavigator';
 import TutorProfileScreen from '../screens/TutorProfileScreen';
 import ChatScreen from '../screens/ChatScreen';
 import TutorList from '../screens/TutorList';
@@ -60,12 +61,23 @@ const AppNavigator = () => {
     }
   };
 
+  const handleRegistrationComplete = (role: string) => {
+    navigation.reset({
+      index: 0,
+      routes: [{ 
+        name: role === 'tutor' ? 'TutorTabs' : 'MainApp'
+      }],
+    });
+  };
+
   if (loading || hasProfile === null) {
     return <LoadingScreen />;
   }
 
   return (
-    <Stack.Navigator initialRouteName={user ? (hasProfile ? 'MainApp' : 'RoleSelection') : 'Welcome'}>
+    <Stack.Navigator 
+      initialRouteName={user ? (hasProfile ? 'MainApp' : 'RoleSelection') : 'Welcome'}
+    >
       <Stack.Screen 
         name="Welcome" 
         component={WelcomeScreen}
@@ -95,11 +107,25 @@ const AppNavigator = () => {
       <Stack.Screen name="LocationSelection" component={LocationSelectionScreen} />
       <Stack.Screen name="FrequencySelection" component={FrequencySelectionScreen} />
       <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
-      <Stack.Screen name="RegistrationComplete" component={RegistrationCompleteScreen} />
+      <Stack.Screen 
+        name="RegistrationComplete" 
+        component={RegistrationCompleteScreen} 
+        options={{ headerShown: false }}
+      />
+
+      {/* Tutor Screens */}
+      <Stack.Screen 
+        name="TutorDashboard" 
+        component={TutorTabNavigator} 
+        options={{ headerShown: false }}
+      />
       
       {/* Main App Screens */}
-      <Stack.Screen name="MainApp" component={BottomTabNavigator} options={{headerShown: false}}/>
-      <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
+      <Stack.Screen 
+        name="MainApp" 
+        component={BottomTabNavigator} 
+        options={{ headerShown: false }}
+      />
       <Stack.Screen name="TutorProfile" component={TutorProfileScreen} options={{headerShown: false, presentation: 'modal'}}/>
       <Stack.Screen 
         name="Chat" 

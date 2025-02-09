@@ -32,7 +32,7 @@ const AreaSelectionScreen = () => {
 
   const handleNext = () => {
     if (area) {
-      navigation.navigate('FormatSelection', { role, subject, area });
+      navigation.navigate('FormatSelection', { role, name: route.params.name, subject, area });
     } else {
       Alert.alert('Error', 'Please select an area');
     }

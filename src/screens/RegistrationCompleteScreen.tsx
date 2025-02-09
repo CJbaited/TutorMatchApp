@@ -13,8 +13,13 @@ const RegistrationCompleteScreen = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.navigate('Home', { role });
-    }, 3000); // 3 seconds delay
+      navigation.reset({
+        index: 0,
+        routes: [{ 
+          name: role === 'tutor' ? 'TutorDashboard' : 'MainApp'
+        }],
+      });
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, [navigation, role]);

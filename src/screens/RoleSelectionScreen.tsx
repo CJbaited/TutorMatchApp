@@ -10,33 +10,8 @@ import supabase from '../services/supabase';
 const RoleSelectionScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
-  const handleRoleSelection = async (role: string) => {
-    if (role === 'tutor') {
-      Alert.alert('Coming Soon', 'Tutor registration will be available soon!');
-      return;
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error('No authenticated user');
-
-      const { error } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            user_id: user.id,
-            role: role,
-            created_at: new Date().toISOString()
-          }
-        ]);
-
-      if (error) throw error;
-
-      navigation.navigate('SubjectSelection', { role });
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    }
+  const handleRoleSelection = (role: string) => {
+    navigation.navigate('NameInput', { role });
   };
 
   return (

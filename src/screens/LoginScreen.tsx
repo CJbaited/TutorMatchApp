@@ -18,30 +18,40 @@ export function LoginScreen({ navigation }: { navigation: any }) {
       
       if (error) throw error;
 
-      // Check if user profile exists
-      const { data: profile, error: profileError } = await supabase
+      // Check if user exists in tutors table first
+      const { data: tutorProfile, error: tutorError } = await supabase
+        .from('tutors')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .single();
+
+      if (!tutorError && tutorProfile) {
+        // User is a tutor
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'TutorDashboard' }]
+        });
+        return;
+      }
+
+      // Check if user exists in profiles table
+      const { data: studentProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', data.user.id)
-        .limit(1)
         .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError;
-      }
-
-      // Navigate based on profile existence
-      if (!profile) {
+      if (!studentProfile) {
         // First time user - go to onboarding
         navigation.reset({
           index: 0,
           routes: [{ name: 'RoleSelection' }]
         });
       } else {
-        // Existing user - go directly to home
+        // Existing student - go to main app
         navigation.reset({
           index: 0,
-          routes: [{ name: 'MainApp' }] // Changed from DevHome to MainApp
+          routes: [{ name: 'MainApp' }]
         });
       }
     } catch (error) {

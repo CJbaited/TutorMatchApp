@@ -3,12 +3,12 @@ export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
   RoleSelection: undefined;
-  SubjectSelection: { role: string };
-  AreaSelection: { role: string; subject: string[] };
-  FormatSelection: { role: string; subject: string[]; area: string };
-  LocationSelection: { role: string; subject: string[]; area: string; format: string };
-  FrequencySelection: { role: string; subject: string[]; area: string; format: string; location?: string };
-  DurationSelection: { role: string; subject: string[]; area: string; format: string; location?: string; frequency: string };
+  SubjectSelection: { role: string; name: string };
+  AreaSelection: { role: string; name: string; subject: string[] };
+  FormatSelection: { role: string; name: string; subject: string[]; area: string };
+  LocationSelection: { role: string; name: string; subject: string[]; area: string; format: string };
+  FrequencySelection: { role: string; name: string; subject: string[]; area: string; format: string; location?: string };
+  DurationSelection: { role: string; name: string; subject: string[]; area: string; format: string; location?: string; frequency: string };
   RegistrationComplete: { role: string };
   Home: { role: string };
   DevHome: undefined;
@@ -26,4 +26,6 @@ export type RootStackParamList = {
     conversationId: number;
     participantId: number;
   };
+  TutorDashboard: undefined;
+  MainApp: undefined;
 };

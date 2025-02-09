@@ -71,7 +71,7 @@ const LocationSelectionScreen = () => {
 
   const handleNext = () => {
     if (location) {
-      navigation.navigate('FrequencySelection', { role, subject, area, format, location });
+      navigation.navigate('FrequencySelection', { role, name: route.params.name, subject, area, format, location });
     } else {
       Alert.alert('Error', 'Please select a location');
     }

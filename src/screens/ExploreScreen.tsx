@@ -15,8 +15,8 @@ import { Search, ChevronRight, Star, X } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { formatSpecializations } from '../utils/formatSpecializations';
 import { ExploreSkeleton } from '../components/ExploreSkeleton';
-import supabase from '../services/supabase';
 import debounce from 'lodash/debounce';
+import supabase from '../services/supabase';
 
 const ExploreScreen = () => {
   const navigation = useNavigation();
@@ -53,35 +53,39 @@ const ExploreScreen = () => {
       setSearchResults([]);
       return;
     }
-
+  
     setIsSearching(true);
     setIsSearchLoading(true);
-    const lowerQuery = query.toLowerCase();
-
+  
     try {
+      const lowerQuery = query.toLowerCase();
+  
       const { data: tutors, error } = await supabase
         .from('tutors')
-        .select('*');
-
+        .select('*')
+        .not('specialization', 'is', null); // Ensure specialization exists
+  
       if (error) throw error;
-
+  
       const filtered = tutors?.filter(tutor => {
-        // Search by tutor name
-        const nameMatch = tutor.name.toLowerCase().includes(lowerQuery);
+        // Search by tutor name if it exists
+        const nameMatch = tutor.name?.toLowerCase().includes(lowerQuery) || false;
         
-        // Search by specialization (subjects)
-        const subjectMatch = tutor.specialization.some(
-          subject => subject.toLowerCase().includes(lowerQuery)
-        );
-
-        // Search by subject areas
-        const areaMatch = tutor.subject_areas?.some(
-          area => area.toLowerCase().includes(lowerQuery)
-        );
-
+        // Search by specialization (subjects) if it exists
+        const subjectMatch = Array.isArray(tutor.specialization) && 
+          tutor.specialization.some(
+            subject => subject?.toLowerCase().includes(lowerQuery)
+          );
+  
+        // Search by subject areas if they exist
+        const areaMatch = Array.isArray(tutor.subject_areas) && 
+          tutor.subject_areas.some(
+            area => area?.toLowerCase().includes(lowerQuery)
+          );
+  
         return nameMatch || subjectMatch || areaMatch;
       });
-
+  
       setSearchResults(filtered || []);
     } catch (error) {
       console.error('Error searching tutors:', error);
@@ -90,17 +94,17 @@ const ExploreScreen = () => {
       setIsSearchLoading(false);
     }
   };
-
+  
   // Create debounced search
   const debouncedSearch = debounce(handleSearch, 500);
-
+  
   // Cleanup debounce on unmount
   useEffect(() => {
     return () => {
       debouncedSearch.cancel();
     };
   }, []);
-
+  
   const fetchTutors = async () => {
     try {
       const { data: tutors, error } = await supabase

@@ -25,7 +25,7 @@ const FrequencySelectionScreen = () => {
 
   const handleNext = () => {
     if (frequency) {
-      navigation.navigate('DurationSelection', { role, subject, area, format, location, frequency });
+      navigation.navigate('DurationSelection', { role, name: route.params.name, subject, area, format, location, frequency });
     } else {
       Alert.alert('Error', 'Please select a frequency');
     }

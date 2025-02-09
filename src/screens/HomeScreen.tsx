@@ -97,19 +97,19 @@ const HomeScreen = () => {
     }
   };
 
+  // Update the fetchTutors function
   const fetchTutors = async (subjects: string[], subject_areas: Record<string, string[]>) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user');
   
-      // Get user location
+      // Get user profile including teaching format preference
       const { data: userProfile } = await supabase
         .from('profiles')
-        .select('latitude, longitude, preferred_radius, city')
+        .select('latitude, longitude, preferred_radius, city, teaching_format')
         .eq('user_id', user.id)
         .single();
   
-      // Fetch all tutors
       const { data: allTutors, error } = await supabase
         .from('tutors')
         .select('*')
@@ -117,12 +117,32 @@ const HomeScreen = () => {
   
       if (error) throw error;
   
-      // Filter tutors based on location and preferences
-      const filteredTutors = allTutors.filter(tutor => {
-        // If online teaching, don't filter by location
-        if (tutor.teaching_format === 'online') return true;
+      // Helper function to check teaching format compatibility
+      const isTeachingFormatCompatible = (tutorFormat: string, userFormat: string) => {
+        switch (userFormat) {
+          case 'online':
+            return tutorFormat === 'online' || tutorFormat === 'hybrid';
+          case 'face_to_face':
+            return tutorFormat === 'face_to_face' || tutorFormat === 'hybrid';
+          case 'hybrid':
+            return tutorFormat === 'hybrid' || tutorFormat === 'online' || tutorFormat === 'face_to_face';
+          default:
+            return true;
+        }
+      };
   
-        // Calculate distance between user and tutor
+      // Filter tutors based on location, preferences, and teaching format
+      const filteredTutors = allTutors.filter(tutor => {
+        // Check teaching format compatibility
+        const formatMatch = isTeachingFormatCompatible(tutor.teaching_format, userProfile.teaching_format);
+        if (!formatMatch) return false;
+  
+        // If online teaching or user prefers online, don't filter by location
+        if (tutor.teaching_format === 'online' || userProfile.teaching_format === 'online') {
+          return subjects.some(subject => tutor.specialization.includes(subject));
+        }
+  
+        // Calculate distance for face-to-face or hybrid formats
         const distance = calculateDistance(
           userProfile.latitude,
           userProfile.longitude,
@@ -145,7 +165,7 @@ const HomeScreen = () => {
           return [...areas, ...(subject_areas[subject] || [])];
         }, []);
   
-        // If no areas selected or online teaching, return location check
+        // If no areas selected, return location check
         if (selectedAreas.length === 0) return withinRadius;
   
         // Check if tutor areas match user selected areas

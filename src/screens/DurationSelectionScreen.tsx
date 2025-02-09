@@ -26,31 +26,58 @@ const DurationSelectionScreen = () => {
 
   const handleFinish = async () => {
     if (duration) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Error', 'User not authenticated');
-        return;
-      }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          Alert.alert('Error', 'User not authenticated');
+          return;
+        }
+  
+        if (role === 'tutor'|| role === '') {
+          // Single insert for tutors with all data
+          const { error: tutorError } = await supabase
+            .from('tutors')
+            .insert([{
+              user_id: user.id,
+              name: route.params.name,
+              specialization: subject,
+              subject_areas: [area],
+              teaching_format: format,
+              city: location,
+              frequency: frequency,
+              duration: duration,
+              availability: null,
+              rating: 0,
+              reviews: 0,
+              price: 0,
+              active: true,
+              joined_date: new Date().toISOString()
+            }])
+            .select()
+            .single();
+  
+          if (tutorError) throw tutorError;
+        } else {
+          // For students, save in profiles table
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([{
+              user_id: user.id,
+              role: 'student',
+              subjects: subject,
+              area: area,
+              location: location,
+              frequency: frequency,
+              duration: duration,
+              created_at: new Date().toISOString()
+            }]);
 
-      const { error } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            user_id: user.id,
-            role,
-            subject,
-            area,
-            teaching_format: format,
-            location,
-            frequency,
-            duration,
-          },
-        ]);
+          if (profileError) throw profileError;
+        }
 
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else {
         navigation.navigate('RegistrationComplete', { role });
+      } catch (error) {
+        Alert.alert('Error', error.message);
       }
     } else {
       Alert.alert('Error', 'Please select a duration');

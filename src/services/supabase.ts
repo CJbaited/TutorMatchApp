@@ -33,6 +33,7 @@ const createTables = async () => {
         image_url TEXT,
         affiliation TEXT,
         specialization TEXT[],
+        teaching_format TEXT,
         rating NUMERIC CHECK (rating >= 0 AND rating <= 5),
         reviews INTEGER DEFAULT 0,
         price NUMERIC NOT NULL,

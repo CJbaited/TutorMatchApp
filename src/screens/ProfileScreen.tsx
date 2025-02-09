@@ -10,6 +10,9 @@ import { decode } from 'base64-arraybuffer';
 import { compressImage, validateImage } from '../utils/ImageUtils';
 import { colors } from '../theme/Theme';
 import supabase from '../services/supabase';
+import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
+import Modal from 'react-native-modal';
 
 const ProfileScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +28,10 @@ const ProfileScreen = () => {
     bio: '',
     image_url: null
   });
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -141,6 +148,181 @@ const ProfileScreen = () => {
     }
   };
 
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please allow location access to use this feature');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error requesting location permission:', error);
+      return false;
+    }
+  };
+
+  const getCurrentLocation = async () => {
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) return;
+
+      setIsLoading(true);
+      const location = await Location.getCurrentPositionAsync({});
+      const address = await reverseGeocode(
+        location.coords.latitude,
+        location.coords.longitude
+      );
+
+      setProfileData(prev => ({
+        ...prev,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        location: address,
+        city: address.split(',')[0].trim()
+      }));
+
+      // Update in database
+      await updateLocationInDatabase(
+        location.coords.latitude,
+        location.coords.longitude,
+        address
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to get current location');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const reverseGeocode = async (latitude: number, longitude: number) => {
+    try {
+      const response = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude
+      });
+
+      if (response[0]) {
+        const { city, region, country } = response[0];
+        return `${city}, ${region}, ${country}`;
+      }
+      return '';
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      return '';
+    }
+  };
+
+  const updateLocationInDatabase = async (
+    latitude: number,
+    longitude: number,
+    address: string
+  ) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          latitude,
+          longitude,
+          location: address,
+          city: address.split(',')[0].trim()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const searchLocations = async (query: string) => {
+    if (query.length < 3) return;
+    
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
+        {
+          headers: {
+            'User-Agent': 'TutorMatchApp/1.0', // Replace with your app name/version
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setSearchResults(data);
+    } catch (error) {
+      console.error('Error searching locations:', error);
+      Alert.alert('Error', 'Failed to search locations');
+    }
+  };
+
+  const handleLocationSelect = async (item: any) => {
+    try {
+      const latitude = parseFloat(item.lat);
+      const longitude = parseFloat(item.lon);
+      const address = item.display_name;
+
+      setProfileData(prev => ({
+        ...prev,
+        latitude,
+        longitude,
+        location: address,
+        city: item.address?.city || item.address?.town || address.split(',')[0].trim()
+      }));
+
+      await updateLocationInDatabase(latitude, longitude, address);
+      setShowLocationModal(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to set selected location');
+    }
+  };
+
+  const renderLocationSection = () => (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>Location</Text>
+      <View style={styles.locationContainer}>
+        <TouchableOpacity 
+          style={styles.getCurrentLocationButton}
+          onPress={getCurrentLocation}
+        >
+          <Ionicons name="location" size={24} color={colors.primary} />
+          <Text style={styles.getCurrentLocationText}>Get Current Location</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.orText}>- OR -</Text>
+
+        <TouchableOpacity 
+          style={styles.searchLocationButton}
+          onPress={() => setShowLocationModal(true)}
+        >
+          <Ionicons name="search" size={24} color={colors.primary} />
+          <Text style={styles.searchLocationText}>Search Location</Text>
+        </TouchableOpacity>
+
+        {profileData.location ? (
+          <View style={styles.detectedLocation}>
+            <Text style={styles.locationText}>{profileData.location}</Text>
+            <Text style={styles.coordinatesText}>
+              {profileData.latitude && profileData.longitude 
+                ? `${profileData.latitude.toFixed(4)}, ${profileData.longitude.toFixed(4)}`
+                : ''}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -207,15 +389,7 @@ const ProfileScreen = () => {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Location</Text>
-            <TextInput
-              style={styles.input}
-              value={profileData.location}
-              onChangeText={(text) => setProfileData({...profileData, location: text})}
-              placeholder="Enter your location"
-            />
-          </View>
+          {renderLocationSection()}
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Detected Location</Text>
@@ -256,6 +430,47 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        isVisible={showLocationModal}
+        onBackdropPress={() => setShowLocationModal(false)}
+        onBackButtonPress={() => setShowLocationModal(false)}
+        style={styles.modal}
+      >
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Search Location</Text>
+            <TouchableOpacity onPress={() => setShowLocationModal(false)}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                searchLocations(text);
+              }}
+              placeholder="Search for a location..."
+              placeholderTextColor="#666"
+            />
+          </View>
+
+          <ScrollView style={styles.resultsContainer}>
+            {searchResults.map((item: any, index: number) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.resultItem}
+                onPress={() => handleLocationSelect(item)}
+              >
+                <Text style={styles.resultText}>{item.display_name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -366,6 +581,102 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  locationContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  getCurrentLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  getCurrentLocationText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  searchLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: 8,
+  },
+  searchLocationText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  orText: {
+    textAlign: 'center',
+    color: '#666',
+    marginVertical: 8,
+  },
+  modal: {
+    margin: 0,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  searchContainer: {
+    marginBottom: 16,
+  },
+  searchInput: {
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    fontSize: 16,
+  },
+  resultsContainer: {
+    maxHeight: 400,
+  },
+  resultItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  resultText: {
+    fontSize: 16,
+    color: '#333',
+  }
 });
 
 export default ProfileScreen;

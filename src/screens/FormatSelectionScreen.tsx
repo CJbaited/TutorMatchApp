@@ -16,9 +16,9 @@ const FormatSelectionScreen = () => {
   const handleNext = () => {
     if (format) {
       if (format === 'face_to_face' || format === 'hybrid') {
-        navigation.navigate('LocationSelection', { role, subject, area, format });
+        navigation.navigate('LocationSelection', { role, name: route.params.name, subject, area, format });
       } else {
-        navigation.navigate('FrequencySelection', { role, subject, area, format });
+        navigation.navigate('FrequencySelection', { role, name: route.params.name, subject, area, format });
       }
     } else {
       Alert.alert('Error', 'Please select a teaching format');

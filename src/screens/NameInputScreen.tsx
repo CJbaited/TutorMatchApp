@@ -1,33 +1,44 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import * as Animatable from 'react-native-animatable';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import supabase from '../services/supabase';
 
-const NameInputScreen = ({ navigation }) => {
-  const [fullName, setFullName] = useState('');
+const NameInputScreen = () => {
+  const [name, setName] = useState('');
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { role } = route.params;
 
-  const handleNext = async () => {
-    if (!fullName.trim()) {
+  const handleContinue = async () => {
+    if (!name.trim()) {
       Alert.alert('Error', 'Please enter your name');
       return;
     }
-
+  
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
-
-      const { error } = await supabase
-        .from('profiles')
-        .insert([
-          {
+  
+      // Only create initial profile for students
+      if (role === 'student') {
+        const { error } = await supabase
+          .from('profiles')
+          .insert([{
             user_id: user.id,
-            name: fullName.trim(),
+            name: name.trim(),
+            role,
             created_at: new Date().toISOString()
-          }
-        ]);
-
-      if (error) throw error;
-      navigation.navigate('RoleSelection');
+          }]);
+  
+        if (error) throw error;
+      }
+  
+      // For tutors, just store the name temporarily
+      navigation.navigate('SubjectSelection', { 
+        role,
+        name: name.trim() // Pass name as parameter
+      });
     } catch (error) {
       Alert.alert('Error', error.message);
     }
@@ -39,12 +50,12 @@ const NameInputScreen = ({ navigation }) => {
       <TextInput
         style={styles.input}
         placeholder="Enter your full name"
-        value={fullName}
-        onChangeText={setFullName}
-        autoCapitalize="words"
+        value={name}
+        onChangeText={setName}
+        autoFocus
       />
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>Next</Text>
+      <TouchableOpacity style={styles.button} onPress={handleContinue}>
+        <Text style={styles.buttonText}>Continue</Text>
       </TouchableOpacity>
     </Animatable.View>
   );
@@ -62,19 +73,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#4CAF50',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   input: {
-    width: '100%',
+    width: '80%',
     padding: 15,
     borderWidth: 1,
     borderColor: '#4CAF50',
     borderRadius: 25,
     marginBottom: 20,
-    fontSize: 16,
+    backgroundColor: '#E8F5E9',
   },
   button: {
-    width: '100%',
+    width: '80%',
     padding: 15,
     backgroundColor: '#4CAF50',
     borderRadius: 25,
@@ -82,8 +93,8 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

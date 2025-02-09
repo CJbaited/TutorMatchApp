@@ -23,7 +23,7 @@ const SubjectSelectionScreen = () => {
 
   const handleNext = () => {
     if (selectedSubjects.length > 0) {
-      navigation.navigate('AreaSelection', { role, subject: selectedSubjects });
+      navigation.navigate('AreaSelection', { role, name: route.params.name, subject: selectedSubjects });
     } else {
       Alert.alert('Error', 'Please select at least one subject');
     }
