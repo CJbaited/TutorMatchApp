@@ -10,8 +10,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, TrendingUp, Users, DollarSign } from 'lucide-react-native';
 import supabase from '../../services/supabase';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const TutorHomeScreen = () => {
+  const navigation = useNavigation<NavigationProp>();
   const [stats, setStats] = useState({
     weeklyEarnings: 0,
     totalStudents: 0,
@@ -75,7 +81,10 @@ const TutorHomeScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('TutorScheduleEdit')}
+            >
               <Text style={styles.actionButtonText}>Update Schedule</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton}>
@@ -83,6 +92,12 @@ const TutorHomeScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton}>
               <Text style={styles.actionButtonText}>View Analytics</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('TutorProfileEdit')}
+            >
+              <Text style={styles.actionButtonText}>Edit Public Profile</Text>
             </TouchableOpacity>
           </View>
         </View>

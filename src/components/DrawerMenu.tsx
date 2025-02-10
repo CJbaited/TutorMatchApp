@@ -61,7 +61,7 @@ const DrawerMenu = ({ isVisible, onClose }: DrawerMenuProps) => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      await signOut(); // This comes from useAuth() hook
       navigation.reset({
         index: 0,
         routes: [{ name: 'Welcome' }],

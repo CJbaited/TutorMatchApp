@@ -18,15 +18,14 @@ export function LoginScreen({ navigation }: { navigation: any }) {
       
       if (error) throw error;
 
-      // Check if user exists in tutors table first
-      const { data: tutorProfile, error: tutorError } = await supabase
+      // Check tutors table first
+      const { data: tutorData } = await supabase
         .from('tutors')
         .select('*')
         .eq('user_id', data.user.id)
         .single();
 
-      if (!tutorError && tutorProfile) {
-        // User is a tutor
+      if (tutorData) {
         navigation.reset({
           index: 0,
           routes: [{ name: 'TutorDashboard' }]
@@ -34,14 +33,14 @@ export function LoginScreen({ navigation }: { navigation: any }) {
         return;
       }
 
-      // Check if user exists in profiles table
-      const { data: studentProfile, error: profileError } = await supabase
+      // Check profiles table
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', data.user.id)
         .single();
 
-      if (!studentProfile) {
+      if (!profileData) {
         // First time user - go to onboarding
         navigation.reset({
           index: 0,

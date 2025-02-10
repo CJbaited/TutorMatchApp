@@ -17,6 +17,7 @@ import RegistrationCompleteScreen from '../screens/RegistrationCompleteScreen';
 import BottomTabNavigator from './BottomTabNavigator';
 import TutorTabNavigator from './TutorTabNavigator';
 import TutorProfileScreen from '../screens/TutorProfileScreen';
+import TutorProfileEditScreen from '../screens/tutor/TutorProfileEditScreen'; 
 import ChatScreen from '../screens/ChatScreen';
 import TutorList from '../screens/TutorList';
 import CategoryScreen from '../screens/CategoryScreen';
@@ -28,55 +29,25 @@ import PaymentScreen from '../screens/PaymentScreen';
 import BookingConfirmationScreen from '../screens/BookingConfirmationScreen';
 import BookingSuccessScreen from '../screens/BookingSuccessScreen';
 import BookingsScreen from '../screens/BookingsScreen';
+import TutorScheduleEditScreen from '../screens/tutor/TutorScheduleEditScreen';
 import  supabase  from '../services/supabase';
 
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { user, loading } = useAuth();
-  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
+  const { user, role, loading } = useAuth();
 
-  useEffect(() => {
-    checkUserProfile();
-  }, [user]);
-
-  const checkUserProfile = async () => {
-    if (!user) {
-      setHasProfile(false);
-      return;
-    }
-
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .limit(1)
-        .single();
-
-      setHasProfile(!!profile);
-    } catch (error) {
-      console.error('Error checking profile:', error);
-      setHasProfile(false);
-    }
-  };
-
-  const handleRegistrationComplete = (role: string) => {
-    navigation.reset({
-      index: 0,
-      routes: [{ 
-        name: role === 'tutor' ? 'TutorTabs' : 'MainApp'
-      }],
-    });
-  };
-
-  if (loading || hasProfile === null) {
+  if (loading) {
     return <LoadingScreen />;
   }
 
   return (
     <Stack.Navigator 
-      initialRouteName={user ? (hasProfile ? 'MainApp' : 'RoleSelection') : 'Welcome'}
+      initialRouteName={
+        user 
+          ? (role === 'tutor' ? 'TutorDashboard' : 'MainApp')
+          : 'Welcome'
+      }
     >
       <Stack.Screen 
         name="Welcome" 
@@ -207,6 +178,24 @@ const AppNavigator = () => {
           headerStyle: {
             backgroundColor: '#F8F9FA',
           }
+        }}
+      />
+      <Stack.Screen 
+        name="TutorProfileEdit"
+        component={TutorProfileEditScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Edit Profile',
+          headerShadowVisible: false
+        }}
+      />
+      <Stack.Screen
+        name="TutorScheduleEdit"
+        component={TutorScheduleEditScreen}
+        options={{
+          headerShown: true,
+          headerTitle: "Edit Schedule",
+          headerShadowVisible: false,
         }}
       />
     </Stack.Navigator>
