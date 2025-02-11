@@ -1,13 +1,62 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, Alert } from 'react-native';
 import { Calendar, Clock, DollarSign } from 'lucide-react-native';
-import { useBookings } from '../contexts/BookingContext';
+import supabase from '../services/supabase';
 
 type TabType = 'upcoming' | 'completed' | 'cancelled';
 
+interface Booking {
+  id: string;
+  tutor_id: string;
+  date: string;
+  time: string;
+  status: string;
+  price: number;
+  payment_method: string;
+  tutors: {
+    name: string;
+  };
+}
+
 const BookingsScreen = () => {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('upcoming');
-  const { bookings, cancelBooking } = useBookings();
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const fetchBookings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          tutor_id,
+          date,
+          time,
+          status,
+          price,
+          payment_method,
+          tutors (
+            name
+          )
+        `)
+        .eq('student_id', user.id);
+
+      if (error) throw error;
+      setBookings(data || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      Alert.alert('Error', 'Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getFilteredBookings = () => {
     switch (activeTab) {
@@ -22,10 +71,50 @@ const BookingsScreen = () => {
     }
   };
 
-  const renderBookingCard = ({ item }) => (
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      // First verify the booking exists and can be cancelled
+      const { data: booking, error: fetchError } = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', bookingId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching booking:', fetchError);
+        Alert.alert('Error', 'Could not find booking');
+        return;
+      }
+
+      if (booking.status !== 'pending' && booking.status !== 'confirmed') {
+        Alert.alert('Error', 'This booking cannot be cancelled');
+        return;
+      }
+
+      // Proceed with cancellation
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId);
+
+      if (updateError) {
+        console.error('Error cancelling booking:', updateError);
+        Alert.alert('Error', 'Failed to cancel booking');
+        return;
+      }
+
+      fetchBookings(); // Refresh the bookings list
+      Alert.alert('Success', 'Booking cancelled successfully');
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      Alert.alert('Error', 'Failed to cancel booking');
+    }
+  };
+
+  const renderBookingCard = ({ item }: { item: Booking }) => (
     <View style={styles.bookingCard}>
       <View style={styles.bookingHeader}>
-        <Text style={styles.tutorName}>{item.tutorName}</Text>
+        <Text style={styles.tutorName}>{item.tutors?.name}</Text>
         <Text style={styles.price}>${item.price}</Text>
       </View>
 
@@ -41,7 +130,13 @@ const BookingsScreen = () => {
         <View style={styles.detailRow}>
           <DollarSign size={16} color="#666" />
           <Text style={styles.detailText}>
-            {item.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Cash Payment'}
+            {item.payment_method === 'card' ? 'Credit/Debit Card' : 'Cash Payment'}
+          </Text>
+        </View>
+        
+        <View style={styles.statusContainer}>
+          <Text style={[styles.statusText, styles[`status${item.status}`]]}>
+            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
           </Text>
         </View>
       </View>
@@ -49,7 +144,7 @@ const BookingsScreen = () => {
       {activeTab === 'upcoming' && (
         <TouchableOpacity 
           style={styles.cancelButton}
-          onPress={() => cancelBooking(item.id)}
+          onPress={() => handleCancelBooking(item.id)}
         >
           <Text style={styles.cancelButtonText}>Cancel Booking</Text>
         </TouchableOpacity>
@@ -194,6 +289,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
+  statusContainer: {
+    marginTop: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '500',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  statuspending: {
+    backgroundColor: '#FFF3CD',
+    color: '#856404',
+  },
+  statusconfirmed: {
+    backgroundColor: '#D4EDDA',
+    color: '#155724',
+  },
+  statuscancelled: {
+    backgroundColor: '#F8D7DA',
+    color: '#721C24',
+  },
+  statuscompleted: {
+    backgroundColor: '#CCE5FF',
+    color: '#004085',
+  }
 });
 
 export default BookingsScreen;

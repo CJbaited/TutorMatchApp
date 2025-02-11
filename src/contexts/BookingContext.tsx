@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
+import { Booking } from '../types/booking';
 
-type Booking = {
+/*type Booking = {
   id: string;
   tutorId: string;
   tutorName: string;
@@ -9,7 +10,7 @@ type Booking = {
   price: number;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   paymentMethod: string;
-};
+};*/
 
 type BookingContextType = {
   bookings: Booking[];

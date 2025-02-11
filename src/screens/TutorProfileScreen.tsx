@@ -81,9 +81,9 @@ const TutorProfileScreen = ({ route }) => {
                 ]}>
                   {daySchedule.available ? 'Available' : 'Off'}
                 </Text>
-                {daySchedule.available && daySchedule.slots.map((slot, i) => (
+                {daySchedule.available && daySchedule.ranges?.map((range, i) => (
                   <Text key={i} style={styles.timeSlot}>
-                    {slot.start} - {slot.end}
+                    {range.start} - {range.end}
                   </Text>
                 ))}
               </View>

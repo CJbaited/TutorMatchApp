@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import { TimeSlot } from '../types/booking';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { format, parseISO, addDays } from 'date-fns';
 import  supabase  from '../services/supabase'; // Assuming you have a supabase client setup
@@ -33,14 +34,21 @@ interface TutorAvailability {
   timezone: string;
 }
 
-// Add this utility function at the top of the file
-const generateTimeSlots = (start: string, end: string): string[] => {
+// Update the generateTimeSlots function
+const generateTimeSlots = (start: string, end: string) => {
   const slots: string[] = [];
-  const [startHour] = start.split(':').map(Number);
-  const [endHour] = end.split(':').map(Number);
+  const [startHour, startMinute] = start.split(':').map(Number);
+  const [endHour, endMinute] = end.split(':').map(Number);
   
-  for (let hour = startHour; hour < endHour; hour++) {
-    slots.push(`${hour.toString().padStart(2, '0')}:00`);
+  const startTime = startHour * 60 + startMinute;
+  const endTime = endHour * 60 + endMinute;
+  
+  for (let time = startTime; time < endTime; time += 60) {
+    const hour = Math.floor(time / 60);
+    const minute = time % 60;
+    slots.push(
+      `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+    );
   }
   
   return slots;
@@ -54,6 +62,9 @@ const BookingCalendarScreen = () => {
   const [selectedTime, setSelectedTime] = useState('');
   const [tutorAvailability, setTutorAvailability] = useState(null);
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [occupiedSlots, setOccupiedSlots] = useState<TimeSlot[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('');
 
   // Get tutor's availability when component mounts
   useEffect(() => {
@@ -73,6 +84,58 @@ const BookingCalendarScreen = () => {
     };
 
     fetchTutorAvailability();
+  }, [tutorId]);
+
+  // Update the fetchOccupiedSlots function
+  const fetchOccupiedSlots = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('date, time, status')
+        .eq('tutor_id', tutorId)
+        .in('status', ['pending', 'confirmed']); // Only get active bookings
+      
+      if (error) {
+        console.error('Error fetching occupied slots:', error);
+        return;
+      }
+      
+      // Filter out cancelled bookings
+      const activeBookings = data?.filter(booking => 
+        booking.status !== 'cancelled'
+      ) || [];
+      
+      setOccupiedSlots(activeBookings);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  // Add useEffect to fetch occupied slots
+  useEffect(() => {
+    fetchOccupiedSlots();
+  }, [tutorId]);
+
+  // Add this inside the BookingCalendarScreen component
+  useEffect(() => {
+    const subscription = supabase
+      .channel('bookings_changes')
+      .on('postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `tutor_id=eq.${tutorId}`
+        },
+        () => {
+          fetchOccupiedSlots(); // Refresh occupied slots when bookings change
+        }
+      )
+      .subscribe();
+  
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [tutorId]);
 
   // Generate marked dates for calendar
@@ -104,23 +167,38 @@ const BookingCalendarScreen = () => {
     return marks;
   }, [tutorAvailability, selectedDate]);
 
-  // Update available time slots when date is selected
+  // Update handleDateSelect to properly filter occupied slots
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
+    setSelectedTime('');
     
     if (tutorAvailability) {
       const dayOfWeek = parseISO(date).getDay().toString();
-      const exception = tutorAvailability.exceptions.find(e => e.date === date);
+      const daySchedule = tutorAvailability.weeklySchedule[dayOfWeek];
       
-      // Use exception slots if present, otherwise use regular schedule
-      const slots = exception?.slots || tutorAvailability.weeklySchedule[dayOfWeek].slots;
-      
-      // Generate all available time slots for each slot range
-      const allTimeSlots = slots.flatMap(slot => 
-        generateTimeSlots(slot.start, slot.end)
+      if (!daySchedule?.available) {
+        setAvailableTimeSlots([]);
+        return;
+      }
+
+      // Get all possible time slots from tutor's ranges
+      const allTimeSlots = daySchedule.ranges.flatMap(range => 
+        generateTimeSlots(range.start, range.end)
       );
-      
-      setAvailableTimeSlots(allTimeSlots);
+
+      // Filter out occupied slots for this date
+      const dateOccupiedTimes = occupiedSlots
+        .filter(slot => 
+          slot.date === date && 
+          slot.status !== 'cancelled'
+        )
+        .map(slot => slot.time.slice(0, 5)); // Only take HH:MM part
+
+      const availableSlots = allTimeSlots.filter(
+        time => !dateOccupiedTimes.includes(time)
+      );
+
+      setAvailableTimeSlots(availableSlots);
     }
   };
 
@@ -133,6 +211,92 @@ const BookingCalendarScreen = () => {
         date: selectedDate,
         time: selectedTime,
       });
+    }
+  };
+
+  // Update the time slots rendering
+  const renderTimeSlots = () => (
+    <View style={styles.timeGrid}>
+      {availableTimeSlots.map((time) => (
+        <TouchableOpacity
+          key={time}
+          style={[
+            styles.timeSlot,
+            selectedTime === time && styles.selectedTimeSlot,
+          ]}
+          onPress={() => setSelectedTime(time)}
+        >
+          <Text style={[
+            styles.timeText,
+            selectedTime === time && styles.selectedTimeText
+          ]}>
+            {time}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const handleConfirm = async () => {
+    try {
+      setIsLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+  
+      // Format the date and time properly
+      const formattedDate = new Date(date).toISOString().split('T')[0];
+      const formattedTime = time + ':00';
+  
+      // Check for any active bookings in this slot
+      const { data: existingActive, error: checkError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('tutor_id', tutorId)
+        .eq('date', formattedDate)
+        .eq('time', formattedTime)
+        .in('status', ['pending', 'confirmed'])
+        .maybeSingle();
+  
+      if (checkError) {
+        console.error('Error checking bookings:', checkError);
+        Alert.alert('Error', 'Failed to verify time slot availability');
+        return;
+      }
+  
+      if (existingActive) {
+        Alert.alert('Error', 'This time slot is no longer available');
+        return;
+      }
+  
+      // Create new booking
+      const { error: insertError } = await supabase
+        .from('bookings')
+        .insert({
+          tutor_id: tutorId,
+          student_id: user.id,
+          date: formattedDate,
+          time: formattedTime,
+          status: 'pending',
+          price: Number(price),
+          payment_method: paymentMethod,
+        });
+  
+      if (insertError) {
+        console.error('Booking error details:', insertError);
+        Alert.alert('Error', 'Failed to create booking');
+        return;
+      }
+  
+      navigation.navigate('BookingSuccess');
+    } catch (error) {
+      console.error('Booking error:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -162,25 +326,7 @@ const BookingCalendarScreen = () => {
       <View style={styles.timeContainer}>
         <Text style={styles.sectionTitle}>Available Times</Text>
         <ScrollView>
-          <View style={styles.timeGrid}>
-            {availableTimeSlots.map((time) => (
-              <TouchableOpacity
-                key={time}
-                style={[
-                  styles.timeSlot,
-                  selectedTime === time && styles.selectedTimeSlot
-                ]}
-                onPress={() => setSelectedTime(time)}
-              >
-                <Text style={[
-                  styles.timeText,
-                  selectedTime === time && styles.selectedTimeText
-                ]}>
-                  {time}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {renderTimeSlots()}
         </ScrollView>
       </View>
 

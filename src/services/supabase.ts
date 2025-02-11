@@ -39,18 +39,18 @@ const createTables = async () => {
         price NUMERIC NOT NULL,
         joined_date TIMESTAMPTZ DEFAULT NOW(),
         availability JSONB DEFAULT '{
-          "weeklySchedule": {
-            "0": {"available": false, "slots": []},
-            "1": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
-            "2": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
-            "3": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
-            "4": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
-            "5": {"available": true, "slots": [{"start": "09:00", "end": "17:00"}]},
-            "6": {"available": false, "slots": []}
-          }',
-          "exceptions": [],
-          "timezone": "UTC"
-        }'
+    "weeklySchedule": {
+      "0": {"available": false, "ranges": []},
+      "1": {"available": false, "ranges": []},
+      "2": {"available": false, "ranges": []},
+      "3": {"available": false, "ranges": []},
+      "4": {"available": false, "ranges": []},
+      "5": {"available": false, "ranges": []},
+      "6": {"available": false, "ranges": []}
+    },
+    "exceptions": [],
+    "timezone": "UTC"
+  }'
       );
 
     `
