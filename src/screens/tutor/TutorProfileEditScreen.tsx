@@ -194,6 +194,14 @@ const TutorProfileEditScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Preview Button */}
+        <TouchableOpacity 
+          style={styles.previewButton}
+          onPress={() => navigation.navigate('TutorProfile', { tutor: profile })}
+        >
+          <Text style={styles.previewButtonText}>Preview Profile</Text>
+        </TouchableOpacity>
+
         {/* Save Button */}
         <TouchableOpacity 
           style={[styles.saveButton, loading && styles.disabledButton]} 
@@ -308,7 +316,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
     marginBottom: 32,
   },
   saveButtonText: {
@@ -318,6 +325,21 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  previewButton: {
+    backgroundColor: '#FFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  previewButtonText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
