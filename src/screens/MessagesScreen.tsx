@@ -5,51 +5,101 @@ import {
   StyleSheet, 
   FlatList, 
   TouchableOpacity, 
-  TextInput,
   Image,
+  Alert,
   Platform 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search } from 'lucide-react-native';
 import { useChat } from '../context/ChatContext';
 import { useNavigation } from '@react-navigation/native';
 import supabase from '../services/supabase';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
 import { Swipeable } from 'react-native-gesture-handler';
-import { Trash2, MoreVertical } from 'lucide-react-native';
-import { useAuth } from '../contexts/AuthContext';
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+import { Trash2 } from 'lucide-react-native';
+import { format } from 'date-fns';
 
 const MessagesScreen = () => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const { conversations, addConversation } = useChat();
-  const { user } = useAuth();
-  const navigation = useNavigation<NavigationProp>();
+  const { conversations, addConversation, deleteConversation } = useChat();
+  const navigation = useNavigation();
 
   useEffect(() => {
-    if (user) {
-      fetchConversations();
-    }
-  }, [user]);
+    fetchConversations();
+    const subscription = setupMessageSubscription();
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, []);
+
+  const setupMessageSubscription = () => {
+    return supabase
+      .channel('messages-channel')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages'
+      }, async (payload) => {
+        if (payload.new) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+
+          const conversationId = payload.new.conversation_id;
+          const isMessageFromOther = payload.new.sender_id !== user.id;
+
+          // Fetch the updated conversation to get all current data
+          const { data: updatedConv } = await supabase
+            .from('conversations')
+            .select(`
+              id,
+              tutor_id,
+              updated_at,
+              unread_count,
+              tutors:tutors!inner(
+                name,
+                image_url
+              )
+            `)
+            .eq('id', conversationId)
+            .single();
+
+          if (updatedConv) {
+            addConversation({
+              id: updatedConv.id,
+              participant_id: updatedConv.tutor_id,
+              participant_name: updatedConv.tutors.name,
+              participant_image: updatedConv.tutors.image_url,
+              last_message: payload.new.text,
+              updated_at: payload.new.created_at,
+              unread_count: isMessageFromOther ? (updatedConv.unread_count || 0) + 1 : updatedConv.unread_count
+            });
+          }
+        }
+      })
+      .subscribe();
+  };
 
   const fetchConversations = async () => {
-    if (!user) return;
-    
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data: conversationsData, error } = await supabase
         .from('conversations')
         .select(`
           id,
           tutor_id,
-          last_message,
           updated_at,
-          tutors!inner (
-            user_id,
+          unread_count,
+          tutors:tutors!inner(
             name,
             image_url
+          ),
+          messages(
+            id,
+            text,
+            created_at,
+            sender_id
           )
         `)
         .eq('student_id', user.id)
@@ -57,43 +107,93 @@ const MessagesScreen = () => {
 
       if (error) throw error;
 
-      const formattedConversations = conversationsData?.map(conv => ({
-        id: conv.id,
-        participant_id: conv.tutor_id,
-        participant_name: conv.tutors?.name || 'Unknown Tutor',
-        participant_image: conv.tutors?.image_url,
-        last_message: conv.last_message || '',
-        updated_at: conv.updated_at
-      }));
+      const formattedConversations = conversationsData.map(conv => {
+        // Sort messages by created_at to get the latest message
+        const sortedMessages = conv.messages.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
 
-      formattedConversations?.forEach(conv => addConversation(conv));
+        return {
+          id: conv.id,
+          participant_id: conv.tutor_id,
+          participant_name: conv.tutors?.name || 'Unknown Tutor',
+          participant_image: conv.tutors?.image_url,
+          last_message: sortedMessages[0]?.text || 'Start a conversation',
+          updated_at: conv.updated_at,
+          unread_count: conv.unread_count || 0
+        };
+      });
+
+      formattedConversations.forEach(conv => addConversation(conv));
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching conversations:', error);
-    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConversationOpen = async (conversationId, participantId, participantName) => {
+    try {
+      // Reset unread count
+      const { error } = await supabase
+        .from('conversations')
+        .update({ unread_count: 0 })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedConv = conversations.find(c => c.id === conversationId);
+      if (updatedConv) {
+        addConversation({
+          ...updatedConv,
+          unread_count: 0
+        });
+      }
+
+      // Navigate to chat
+      navigation.navigate('Chat', {
+        conversationId,
+        participantId,
+        participantName
+      });
+    } catch (error) {
+      console.error('Error resetting unread count:', error);
+      Alert.alert('Error', 'Failed to open conversation');
     }
   };
 
   const renderRightActions = (conversationId) => {
     return (
-      <TouchableOpacity
+      <TouchableOpacity 
         style={styles.deleteAction}
-        onPress={() => deleteConversation(conversationId)}
+        onPress={() => handleDelete(conversationId)}
       >
-        <Trash2 size={24} color="#fff" />
+        <Trash2 size={24} color="#FFF" />
       </TouchableOpacity>
     );
+  };
+
+  const handleDelete = async (conversationId) => {
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (error) throw error;
+      deleteConversation(conversationId);
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      Alert.alert('Error', 'Failed to delete conversation');
+    }
   };
 
   const renderItem = ({ item }) => (
     <Swipeable renderRightActions={() => renderRightActions(item.id)}>
       <TouchableOpacity 
         style={styles.chatCard}
-        onPress={() => navigation.navigate('Chat', {
-          conversationId: item.id,
-          participantId: item.participant_id,
-          participantName: item.participant_name
-        })}
+        onPress={() => handleConversationOpen(item.id, item.participant_id, item.participant_name)}
       >
         <Image 
           source={
@@ -106,12 +206,19 @@ const MessagesScreen = () => {
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
             <Text style={styles.name}>{item.participant_name}</Text>
-            <Text style={styles.time}>{item.updated_at}</Text>
+            <Text style={styles.time}>
+              {format(new Date(item.updated_at), 'MMM d, h:mm a')}
+            </Text>
           </View>
           <View style={styles.messageContainer}>
             <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.last_message || 'Start a conversation'}
+              {item.last_message}
             </Text>
+            {item.unread_count > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadCount}>{item.unread_count}</Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -122,12 +229,6 @@ const MessagesScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
-        <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => setIsEditing(!isEditing)}
-        >
-          <MoreVertical size={24} color="#333" />
-        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -167,11 +268,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
-  iconButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#F0F0F0',
-  },
   listContainer: {
     padding: 16,
   },
@@ -208,6 +304,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
   },
   name: {
     fontSize: 16,
@@ -217,12 +314,11 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 12,
     color: colors.textSecondary,
+    marginLeft: 8,
   },
   messageContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 5,
   },
   lastMessage: {
     flex: 1,
@@ -231,17 +327,19 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   unreadBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#084843',
     borderRadius: 12,
-    width: 24,
+    minWidth: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 8,
   },
-  unreadText: {
-    color: 'white',
+  unreadCount: {
+    color: '#FFF',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   deleteAction: {
     backgroundColor: '#FF4444',

@@ -5,24 +5,27 @@ import {
   StyleSheet, 
   FlatList, 
   TouchableOpacity, 
-  TextInput,
   Image,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, MessageCircle } from 'lucide-react-native';
-import { useChat } from '../../context/ChatContext';
 import { useNavigation } from '@react-navigation/native';
+import { format } from 'date-fns';
 import supabase from '../../services/supabase';
 
 const TutorMessagesScreen = () => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const { conversations, addConversation } = useChat();
+  const [conversations, setConversations] = useState([]);
   const navigation = useNavigation();
 
   useEffect(() => {
     fetchConversations();
+    subscribeToMessages();
+
+    return () => {
+      supabase.removeAllChannels();
+    };
   }, []);
 
   const fetchConversations = async () => {
@@ -35,111 +38,182 @@ const TutorMessagesScreen = () => {
         .select(`
           id,
           student_id,
-          last_message,
           updated_at,
-          profiles!inner(
-            user_id,
+          unread_count,
+          profiles:student_id(
             name,
             image_url
           ),
-          messages(*)
+          messages(
+            id,
+            text,
+            created_at,
+            sender_id
+          )
         `)
         .eq('tutor_id', user.id)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
 
-      const formattedConversations = conversationsData?.map(conv => ({
-        id: conv.id,
-        participant_id: conv.student_id,
-        participant_name: conv.profiles?.name,
-        participant_image: conv.profiles?.image_url,
-        last_message: conv.last_message || '',
-        updated_at: conv.updated_at
-      }));
+      const formattedConversations = conversationsData.map(conv => {
+        const latestMessage = conv.messages.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )[0];
 
-      formattedConversations?.forEach(conv => addConversation(conv));
+        return {
+          id: conv.id,
+          studentId: conv.student_id,
+          studentName: conv.profiles?.name || 'Unknown Student',
+          studentImage: conv.profiles?.image_url,
+          lastMessage: latestMessage?.text || 'Start a conversation',
+          updatedAt: conv.updated_at,
+          unreadCount: conv.unread_count || 0,
+          sender_id: latestMessage?.sender_id
+        };
+      });
+
+      setConversations(formattedConversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      Alert.alert('Error', 'Failed to load conversations');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStartChat = async (studentId: string, studentName: string) => {
+  const subscribeToMessages = () => {
+    return supabase
+      .channel('tutor-messages-channel')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages'
+      }, async (payload) => {
+        if (payload.new) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+
+          const conversationId = payload.new.conversation_id;
+          const isMessageFromOther = payload.new.sender_id !== user.id;
+
+          // Fetch the updated conversation
+          const { data: updatedConv } = await supabase
+            .from('conversations')
+            .select(`
+              id,
+              student_id,
+              updated_at,
+              unread_count,
+              profiles:student_id(
+                name,
+                image_url
+              )
+            `)
+            .eq('id', conversationId)
+            .single();
+
+          if (updatedConv) {
+            setConversations(prevConversations => {
+              const updatedConversations = prevConversations.map(conv => {
+                if (conv.id === conversationId) {
+                  return {
+                    ...conv,
+                    studentName: updatedConv.profiles?.name || 'Unknown Student',
+                    studentImage: updatedConv.profiles?.image_url,
+                    lastMessage: payload.new.text,
+                    updatedAt: payload.new.created_at,
+                    unreadCount: isMessageFromOther ? (updatedConv.unread_count || 0) : conv.unreadCount
+                  };
+                }
+                return conv;
+              });
+              
+              // Sort conversations by updated_at
+              return updatedConversations.sort((a, b) => 
+                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+              );
+            });
+          }
+        }
+      })
+      .subscribe();
+  };
+
+  const handleConversationOpen = async (conversationId, studentId, studentName) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('No authenticated user');
-      }
-
-      // Check for existing conversation
-      const { data: existingConv, error: searchError } = await supabase
+      // Reset unread count when opening conversation
+      const { error } = await supabase
         .from('conversations')
-        .select('id')
-        .eq('student_id', studentId)
-        .eq('tutor_id', user.id)
-        .single();
+        .update({ unread_count: 0 })
+        .eq('id', conversationId);
 
-      if (searchError && searchError.code !== 'PGRST116') throw searchError;
+      if (error) throw error;
 
-      if (existingConv) {
-        navigation.navigate('Chat', {
-          conversationId: existingConv.id,
-          participantId: studentId,
-          participantName: studentName
-        });
-        return;
-      }
+      // Update local state
+      setConversations(prevConversations =>
+        prevConversations.map(conv =>
+          conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
+        )
+      );
 
-      // Create new conversation
-      const { data: newConv, error: createError } = await supabase
-        .from('conversations')
-        .insert({
-          student_id: studentId,
-          tutor_id: user.id
-        })
-        .select()
-        .single();
-
-      if (createError) throw createError;
-
+      // Navigate to chat
       navigation.navigate('Chat', {
-        conversationId: newConv.id,
+        conversationId: conversationId,
         participantId: studentId,
         participantName: studentName
       });
     } catch (error) {
-      console.error('Error starting chat:', error);
-      Alert.alert('Error', 'Failed to start chat');
+      console.error('Error resetting unread count:', error);
+      Alert.alert('Error', 'Failed to open conversation');
     }
   };
 
   const renderChatItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.chatItem}
-      onPress={() => navigation.navigate('Chat', {
-        conversationId: item.id,
-        participantName: item.name
-      })}
+      onPress={() => handleConversationOpen(item.id, item.studentId, item.studentName)}
     >
       <View style={styles.avatar}>
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={styles.avatarImage} />
+        {item.studentImage ? (
+          <Image 
+            source={{ uri: item.studentImage }} 
+            style={styles.avatarImage} 
+          />
         ) : (
           <Text style={styles.avatarText}>
-            {item.name ? item.name.charAt(0).toUpperCase() : '?'}
+            {item.studentName.charAt(0).toUpperCase()}
           </Text>
         )}
       </View>
       <View style={styles.chatInfo}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.lastMessage} numberOfLines={1}>
-          {item.lastMessage || 'No messages yet'}
-        </Text>
+        <View style={styles.chatHeader}>
+          <Text style={styles.studentName}>{item.studentName}</Text>
+          <Text style={styles.timestamp}>
+            {format(new Date(item.updatedAt), 'MMM d, h:mm a')}
+          </Text>
+        </View>
+        <View style={styles.messageRow}>
+          <Text style={styles.lastMessage} numberOfLines={1}>
+            {item.lastMessage}
+          </Text>
+          {item.unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadCount}>{item.unreadCount}</Text>
+            </View>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#084843" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -152,11 +226,9 @@ const TutorMessagesScreen = () => {
         renderItem={renderChatItem}
         keyExtractor={item => item.id}
         ListEmptyComponent={
-          !loading && (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No messages yet</Text>
-            </View>
-          )
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No messages yet</Text>
+          </View>
         }
       />
     </SafeAreaView>
@@ -212,6 +284,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
   },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 25,
+  },
   chatInfo: {
     flex: 1,
     marginLeft: 12,
@@ -219,6 +296,7 @@ const styles = StyleSheet.create({
   chatHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
   },
   studentName: {
@@ -242,9 +320,12 @@ const styles = StyleSheet.create({
   unreadBadge: {
     backgroundColor: '#084843',
     borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginLeft: 8,
+    paddingHorizontal: 8,
   },
   unreadCount: {
     color: '#FFF',
@@ -260,6 +341,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
