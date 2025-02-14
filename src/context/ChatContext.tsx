@@ -87,22 +87,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  // Update the addMessage function
   const addMessage = async (conversationId: string, text: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
-      // First update the conversation's last message
-      await supabase
-        .from('conversations')
-        .update({
-          last_message: text,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', conversationId);
+      // Check if user is student or tutor
+      const { data: studentProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
 
-      // Then insert the new message
-      const { data, error } = await supabase
+      // Insert the new message
+      const { data: newMessage, error: messageError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
@@ -114,8 +113,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (messageError) throw messageError;
+
+      // Update conversation last_message and increment unread count
+      const rpcFunction = studentProfile 
+        ? 'increment_tutor_unread_count' 
+        : 'increment_student_unread_count';
+
+      const { error: rpcError } = await supabase
+        .rpc(rpcFunction, { conversation_id: conversationId });
+
+      if (rpcError) throw rpcError;
+
+      return newMessage;
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;

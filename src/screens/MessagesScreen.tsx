@@ -7,7 +7,8 @@ import {
   TouchableOpacity, 
   Image,
   Alert,
-  Platform 
+  Platform,
+  AppState 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChat } from '../context/ChatContext';
@@ -16,6 +17,7 @@ import supabase from '../services/supabase';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Trash2 } from 'lucide-react-native';
 import { format } from 'date-fns';
+import * as Notifications from 'expo-notifications';
 
 const MessagesScreen = () => {
   const [loading, setLoading] = useState(true);
@@ -25,10 +27,13 @@ const MessagesScreen = () => {
   useEffect(() => {
     fetchConversations();
     const subscription = setupMessageSubscription();
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+    setupNotifications();
     return () => {
       if (subscription) {
         supabase.removeChannel(subscription);
       }
+      appStateSubscription.remove();
     };
   }, []);
 
@@ -47,36 +52,68 @@ const MessagesScreen = () => {
           const conversationId = payload.new.conversation_id;
           const isMessageFromOther = payload.new.sender_id !== user.id;
 
-          // Fetch the updated conversation to get all current data
-          const { data: updatedConv } = await supabase
-            .from('conversations')
-            .select(`
-              id,
-              tutor_id,
-              updated_at,
-              unread_count,
-              tutors:tutors!inner(
-                name,
-                image_url
-              )
-            `)
-            .eq('id', conversationId)
-            .single();
+          if (isMessageFromOther) {
+            // Fetch the updated conversation
+            const { data: conversationData } = await supabase
+              .from('conversations')
+              .select(`
+                id,
+                tutor_id,
+                updated_at,
+                student_unread_count,
+                last_message,
+                tutors:tutors!inner(
+                  name,
+                  image_url
+                )
+              `)
+              .eq('id', conversationId)
+              .single();
 
-          if (updatedConv) {
-            addConversation({
-              id: updatedConv.id,
-              participant_id: updatedConv.tutor_id,
-              participant_name: updatedConv.tutors.name,
-              participant_image: updatedConv.tutors.image_url,
-              last_message: payload.new.text,
-              updated_at: payload.new.created_at,
-              unread_count: isMessageFromOther ? (updatedConv.unread_count || 0) + 1 : updatedConv.unread_count
-            });
+            if (conversationData) {
+              addConversation({
+                id: conversationData.id,
+                participant_id: conversationData.tutor_id,
+                participant_name: conversationData.tutors?.name || 'Unknown Tutor',
+                participant_image: conversationData.tutors?.image_url,
+                last_message: payload.new.text,
+                updated_at: payload.new.created_at,
+                unread_count: conversationData.student_unread_count || 0
+              });
+            }
           }
         }
       })
       .subscribe();
+  };
+
+  const setupNotifications = async () => {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      return;
+    }
+
+    // Configure notification behavior
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  };
+
+  const handleAppStateChange = (nextAppState: string) => {
+    if (nextAppState === 'active') {
+      fetchConversations(); // Refresh conversations when app comes to foreground
+    }
   };
 
   const fetchConversations = async () => {
@@ -90,7 +127,7 @@ const MessagesScreen = () => {
           id,
           tutor_id,
           updated_at,
-          unread_count,
+          student_unread_count,
           tutors:tutors!inner(
             name,
             image_url
@@ -120,24 +157,38 @@ const MessagesScreen = () => {
           participant_image: conv.tutors?.image_url,
           last_message: sortedMessages[0]?.text || 'Start a conversation',
           updated_at: conv.updated_at,
-          unread_count: conv.unread_count || 0
+          unread_count: conv.student_unread_count || 0
         };
       });
 
+      // Clear existing conversations before adding new ones
+      conversations.forEach(conv => deleteConversation(conv.id));
       formattedConversations.forEach(conv => addConversation(conv));
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching conversations:', error);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleConversationOpen = async (conversationId, participantId, participantName) => {
+  const handleConversationOpen = async (conversationId: string, participantId: string, participantName: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if user is a student or tutor
+      const { data: studentProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      const updateColumn = studentProfile ? 'student_unread_count' : 'tutor_unread_count';
+
       // Reset unread count
       const { error } = await supabase
         .from('conversations')
-        .update({ unread_count: 0 })
+        .update({ [updateColumn]: 0 })
         .eq('id', conversationId);
 
       if (error) throw error;
@@ -224,6 +275,29 @@ const MessagesScreen = () => {
       </TouchableOpacity>
     </Swipeable>
   );
+
+  const resetUnreadCount = async (conversationId) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if user is a student or tutor
+      const { data: studentProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      const updateColumn = studentProfile ? 'student_unread_count' : 'tutor_unread_count';
+
+      await supabase
+        .from('conversations')
+        .update({ [updateColumn]: 0 })
+        .eq('id', conversationId);
+    } catch (error) {
+      console.error('Error resetting unread count:', error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>

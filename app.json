@@ -21,6 +21,14 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow TutorMatch to use your location."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#084843",
+          "sounds": ["./assets/notification-sound.wav"]
+        }
       ]
     ]
   }

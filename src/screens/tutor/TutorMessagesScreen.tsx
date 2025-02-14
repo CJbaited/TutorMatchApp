@@ -7,12 +7,14 @@ import {
   TouchableOpacity, 
   Image,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  AppState
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import supabase from '../../services/supabase';
+import * as Notifications from 'expo-notifications';
 
 const TutorMessagesScreen = () => {
   const [loading, setLoading] = useState(true);
@@ -21,10 +23,14 @@ const TutorMessagesScreen = () => {
 
   useEffect(() => {
     fetchConversations();
-    subscribeToMessages();
+    setupMessageSubscription();
 
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    setupNotifications();
+    
     return () => {
       supabase.removeAllChannels();
+      subscription.remove();
     };
   }, []);
 
@@ -39,7 +45,7 @@ const TutorMessagesScreen = () => {
           id,
           student_id,
           updated_at,
-          unread_count,
+          tutor_unread_count,
           profiles:student_id(
             name,
             image_url
@@ -68,21 +74,47 @@ const TutorMessagesScreen = () => {
           studentImage: conv.profiles?.image_url,
           lastMessage: latestMessage?.text || 'Start a conversation',
           updatedAt: conv.updated_at,
-          unreadCount: conv.unread_count || 0,
-          sender_id: latestMessage?.sender_id
+          unreadCount: conv.tutor_unread_count || 0
         };
       });
 
       setConversations(formattedConversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      Alert.alert('Error', 'Failed to load conversations');
     } finally {
       setLoading(false);
     }
   };
 
-  const subscribeToMessages = () => {
+  const setupNotifications = async () => {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      return;
+    }
+
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  };
+
+  const handleAppStateChange = (nextAppState: string) => {
+    if (nextAppState === 'active') {
+      fetchConversations();
+    }
+  };
+
+  const setupMessageSubscription = () => {
     return supabase
       .channel('tutor-messages-channel')
       .on('postgres_changes', {
@@ -97,43 +129,44 @@ const TutorMessagesScreen = () => {
           const conversationId = payload.new.conversation_id;
           const isMessageFromOther = payload.new.sender_id !== user.id;
 
-          // Fetch the updated conversation
-          const { data: updatedConv } = await supabase
-            .from('conversations')
-            .select(`
-              id,
-              student_id,
-              updated_at,
-              unread_count,
-              profiles:student_id(
-                name,
-                image_url
-              )
-            `)
-            .eq('id', conversationId)
-            .single();
+          if (isMessageFromOther) {
+            // Fetch the updated conversation
+            const { data: conversationData } = await supabase
+              .from('conversations')
+              .select(`
+                id,
+                student_id,
+                updated_at,
+                tutor_unread_count,
+                last_message,
+                profiles:student_id(
+                  name,
+                  image_url
+                )
+              `)
+              .eq('id', conversationId)
+              .single();
 
-          if (updatedConv) {
-            setConversations(prevConversations => {
-              const updatedConversations = prevConversations.map(conv => {
-                if (conv.id === conversationId) {
-                  return {
-                    ...conv,
-                    studentName: updatedConv.profiles?.name || 'Unknown Student',
-                    studentImage: updatedConv.profiles?.image_url,
-                    lastMessage: payload.new.text,
-                    updatedAt: payload.new.created_at,
-                    unreadCount: isMessageFromOther ? (updatedConv.unread_count || 0) : conv.unreadCount
-                  };
-                }
-                return conv;
+            if (conversationData) {
+              setConversations(prevConversations => {
+                const updatedConversations = prevConversations.map(conv => {
+                  if (conv.id === conversationId) {
+                    return {
+                      ...conv,
+                      lastMessage: payload.new.text,
+                      updatedAt: payload.new.created_at,
+                      unreadCount: conversationData.tutor_unread_count || 0
+                    };
+                  }
+                  return conv;
+                });
+                
+                // Sort by latest message
+                return [...updatedConversations].sort((a, b) => 
+                  new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+                );
               });
-              
-              // Sort conversations by updated_at
-              return updatedConversations.sort((a, b) => 
-                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-              );
-            });
+            }
           }
         }
       })
@@ -142,10 +175,9 @@ const TutorMessagesScreen = () => {
 
   const handleConversationOpen = async (conversationId, studentId, studentName) => {
     try {
-      // Reset unread count when opening conversation
       const { error } = await supabase
         .from('conversations')
-        .update({ unread_count: 0 })
+        .update({ tutor_unread_count: 0 })
         .eq('id', conversationId);
 
       if (error) throw error;

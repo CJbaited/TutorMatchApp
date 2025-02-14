@@ -6,13 +6,14 @@ import { colors } from '../theme/Theme';
 import  supabase  from '../services/supabase';
 
 const ChatScreen = ({ route }) => {
-  const { conversationId } = route.params;
+  const { conversationId, participantId, participantName } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef(null);
   const inputHeight = useRef(new Animated.Value(40)).current;
   const [user, setUser] = useState(null);
+  const initialScrollDone = useRef(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -24,7 +25,14 @@ const ChatScreen = ({ route }) => {
 
   useEffect(() => {
     fetchMessages();
-    subscribeToMessages();
+    const subscription = subscribeToMessages();
+    resetUnreadCount(); // Reset count when entering chat
+    
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
   }, [conversationId]);
 
   const fetchMessages = async () => {
@@ -37,6 +45,14 @@ const ChatScreen = ({ route }) => {
 
       if (error) throw error;
       setMessages(data || []);
+      
+      // Scroll to bottom after messages are loaded
+      setTimeout(() => {
+        if (!initialScrollDone.current && flatListRef.current) {
+          flatListRef.current.scrollToEnd({ animated: false });
+          initialScrollDone.current = true;
+        }
+      }, 100);
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -45,22 +61,19 @@ const ChatScreen = ({ route }) => {
   };
 
   const subscribeToMessages = () => {
-    const subscription = supabase
+    return supabase
       .channel(`room:${conversationId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`
-      }, payload => {
+      }, async (payload) => {
+        // Only update messages display
         setMessages(current => [...current, payload.new]);
         flatListRef.current?.scrollToEnd();
       })
       .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
   };
 
   const handleSend = async () => {
@@ -105,6 +118,31 @@ const ChatScreen = ({ route }) => {
     });
   };
 
+  // Add resetUnreadCount function
+  const resetUnreadCount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if user is a student or tutor
+      const { data: studentProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      const updateColumn = studentProfile ? 'student_unread_count' : 'tutor_unread_count';
+
+      // Reset unread count when opening chat
+      await supabase
+        .from('conversations')
+        .update({ [updateColumn]: 0 })
+        .eq('id', conversationId);
+    } catch (error) {
+      console.error('Error resetting unread count:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView 
@@ -114,10 +152,20 @@ const ChatScreen = ({ route }) => {
       >
         <FlatList
           ref={flatListRef}
-          data={messages || []}
+          data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messagesList}
-          onLayout={() => flatListRef.current?.scrollToEnd()}
+          onContentSizeChange={() => {
+            if (flatListRef.current) {
+              flatListRef.current.scrollToEnd({ animated: false });
+            }
+          }}
+          onLayout={() => {
+            if (flatListRef.current && !initialScrollDone.current) {
+              flatListRef.current.scrollToEnd({ animated: false });
+              initialScrollDone.current = true;
+            }
+          }}
           renderItem={({ item }) => (
             <View style={[
               styles.messageBubble,
