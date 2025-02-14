@@ -1,87 +1,171 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import supabase from '../services/supabase';
 
-type Message = {
+interface Message {
   id: string;
-  senderId: number;
-  receiverId: number;
+  conversation_id: string;
+  sender_id: string;
   text: string;
-  timestamp: Date;
-};
+  timestamp: string;
+  read: boolean;
+}
 
-type Conversation = {
-  id: number;
-  participantId: number;
-  name: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  image: any;
-};
+interface Conversation {
+  id: string;
+  participant_id: string;
+  participant_name: string;
+  last_message?: string;
+  unread_count: number;
+  updated_at: string;
+  participant_image?: string;
+}
 
-type ChatContextType = {
+interface ChatContextType {
   conversations: Conversation[];
-  messages: { [conversationId: number]: Message[] };
+  messages: { [conversationId: string]: Message[] };
   addConversation: (conversation: Conversation) => void;
-  addMessage: (conversationId: number, message: Message) => void;
-  deleteConversation: (conversationId: number) => void;
-};
+  addMessage: (conversationId: string, text: string) => Promise<void>;
+  markAsRead: (conversationId: string) => Promise<void>;
+}
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [messages, setMessages] = useState<{ [conversationId: number]: Message[] }>({});
+  const [messages, setMessages] = useState<{ [conversationId: string]: Message[] }>({});
 
   const addConversation = (conversation: Conversation) => {
-    // Check if conversation with this participant already exists
-    const existingConversation = conversations.find(
-      conv => conv.participantId === conversation.participantId
-    );
-
-    if (!existingConversation) {
-      setConversations(prev => [...prev, conversation]);
-      setMessages(prev => ({ ...prev, [conversation.id]: [] }));
-    }
-    
-    return existingConversation || conversation;
+    setConversations(prev => {
+      const existingIndex = prev.findIndex(conv => conv.id === conversation.id);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = conversation;
+        return updated;
+      }
+      return [...prev, conversation];
+    });
   };
 
-  const addMessage = (conversationId: number, message: Message) => {
+  // Add real-time subscription for messages
+  useEffect(() => {
+    const channel = supabase
+      .channel('messages')
+      .on('postgres_changes', { 
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages'
+      }, handleNewMessage)
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, []);
+
+  const handleNewMessage = async (payload: any) => {
+    const { new: message } = payload;
+    
     setMessages(prev => ({
       ...prev,
-      [conversationId]: [...(prev[conversationId] || []), message],
+      [message.conversation_id]: [
+        ...(prev[message.conversation_id] || []),
+        message
+      ]
     }));
-    
+
     setConversations(prev =>
       prev.map(conv =>
-        conv.id === conversationId
+        conv.id === message.conversation_id
           ? {
               ...conv,
-              lastMessage: message.text,
-              time: 'Just now',
-              unread: conv.unread + 1,
+              last_message: message.text,
+              updated_at: message.created_at,
+              unread_count: conv.unread_count + 1
             }
           : conv
       )
     );
   };
 
-  const deleteConversation = (conversationId: number) => {
-    setConversations(prev => prev.filter(conv => conv.id !== conversationId));
-    setMessages(prev => {
-      const newMessages = { ...prev };
-      delete newMessages[conversationId];
-      return newMessages;
-    });
+  const addMessage = async (conversationId: string, text: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      // First update the conversation's last message
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: text,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversationId);
+
+      // Then insert the new message
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user.id,
+          text,
+          created_at: new Date().toISOString(),
+          read: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  };
+
+  const fetchMessages = async (conversationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      throw error;
+    }
+  };
+
+  const markAsRead = async (conversationId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', user.id);
+
+    if (error) throw error;
+
+    setConversations(prev =>
+      prev.map(conv =>
+        conv.id === conversationId
+          ? { ...conv, unread_count: 0 }
+          : conv
+      )
+    );
   };
 
   return (
-    <ChatContext.Provider value={{ 
-      conversations, 
-      messages, 
-      addConversation, 
+    <ChatContext.Provider value={{
+      conversations,
+      messages,
+      addConversation,
       addMessage,
-      deleteConversation 
+      markAsRead
     }}>
       {children}
     </ChatContext.Provider>
@@ -90,7 +174,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useChat = () => {
   const context = useContext(ChatContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useChat must be used within a ChatProvider');
   }
   return context;

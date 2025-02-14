@@ -30,6 +30,7 @@ import BookingConfirmationScreen from '../screens/BookingConfirmationScreen';
 import BookingSuccessScreen from '../screens/BookingSuccessScreen';
 import BookingsScreen from '../screens/BookingsScreen';
 import TutorScheduleEditScreen from '../screens/tutor/TutorScheduleEditScreen';
+import StudentProfileScreen from '../screens/tutor/StudentProfileScreen';
 import  supabase  from '../services/supabase';
 
 const Stack = createNativeStackNavigator();
@@ -196,6 +197,13 @@ const AppNavigator = () => {
           headerShown: true,
           headerTitle: "Edit Schedule",
           headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen 
+        name="StudentProfile" 
+        component={StudentProfileScreen} 
+        options={{
+          headerShown: false
         }}
       />
     </Stack.Navigator>

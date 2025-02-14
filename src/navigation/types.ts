@@ -28,4 +28,7 @@ export type RootStackParamList = {
   };
   TutorDashboard: undefined;
   MainApp: undefined;
+  StudentProfile: {
+    studentId: string;
+  };
 };

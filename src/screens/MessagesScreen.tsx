@@ -1,28 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   FlatList, 
-  Image, 
   TouchableOpacity, 
-  SafeAreaView, 
+  TextInput,
+  Image,
   Platform 
 } from 'react-native';
-import { colors } from '../theme/Theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Search } from 'lucide-react-native';
 import { useChat } from '../context/ChatContext';
 import { useNavigation } from '@react-navigation/native';
+import supabase from '../services/supabase';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Trash2, MoreVertical } from 'lucide-react-native';
+import { useAuth } from '../contexts/AuthContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const MessagesScreen = () => {
-  const [isEditing, setIsEditing] = useState(false);
-  const { conversations, deleteConversation } = useChat();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { conversations, addConversation } = useChat();
+  const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
+
+  useEffect(() => {
+    if (user) {
+      fetchConversations();
+    }
+  }, [user]);
+
+  const fetchConversations = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: conversationsData, error } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          tutor_id,
+          last_message,
+          updated_at,
+          tutors!inner (
+            user_id,
+            name,
+            image_url
+          )
+        `)
+        .eq('student_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedConversations = conversationsData?.map(conv => ({
+        id: conv.id,
+        participant_id: conv.tutor_id,
+        participant_name: conv.tutors?.name || 'Unknown Tutor',
+        participant_image: conv.tutors?.image_url,
+        last_message: conv.last_message || '',
+        updated_at: conv.updated_at
+      }));
+
+      formattedConversations?.forEach(conv => addConversation(conv));
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const renderRightActions = (conversationId) => {
     return (
@@ -34,6 +84,39 @@ const MessagesScreen = () => {
       </TouchableOpacity>
     );
   };
+
+  const renderItem = ({ item }) => (
+    <Swipeable renderRightActions={() => renderRightActions(item.id)}>
+      <TouchableOpacity 
+        style={styles.chatCard}
+        onPress={() => navigation.navigate('Chat', {
+          conversationId: item.id,
+          participantId: item.participant_id,
+          participantName: item.participant_name
+        })}
+      >
+        <Image 
+          source={
+            item.participant_image 
+              ? { uri: item.participant_image }
+              : require('../assets/placeholder-person.jpg')
+          }
+          style={styles.avatar}
+        />
+        <View style={styles.chatInfo}>
+          <View style={styles.chatHeader}>
+            <Text style={styles.name}>{item.participant_name}</Text>
+            <Text style={styles.time}>{item.updated_at}</Text>
+          </View>
+          <View style={styles.messageContainer}>
+            <Text style={styles.lastMessage} numberOfLines={1}>
+              {item.last_message || 'Start a conversation'}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -51,53 +134,18 @@ const MessagesScreen = () => {
         data={conversations}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
-        renderItem={({ item }) => (
-          <Swipeable renderRightActions={() => renderRightActions(item.id)}>
-            <TouchableOpacity 
-              style={styles.chatCard}
-              onPress={() => navigation.navigate('Chat', {
-                conversationId: item.id,
-                participantId: item.participantId
-              })}
-            >
-              <Image 
-                source={
-                  item.image_url 
-                    ? { uri: item.image_url }
-                    : require('../assets/placeholder-person.jpg')
-                }
-                style={styles.avatar}
-              />
-              <View style={styles.chatInfo}>
-                <View style={styles.chatHeader}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.time}>{item.time}</Text>
-                </View>
-                <View style={styles.messageContainer}>
-                  <Text style={styles.lastMessage} numberOfLines={1}>
-                    {item.lastMessage || 'Start a conversation'}
-                  </Text>
-                  {item.unread > 0 && (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadText}>{item.unread}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-              {isEditing && (
-                <TouchableOpacity 
-                  style={styles.deleteButton}
-                  onPress={() => deleteConversation(item.id)}
-                >
-                  <Trash2 size={20} color="#FF4444" />
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          </Swipeable>
-        )}
+        renderItem={renderItem}
+        refreshing={loading}
+        onRefresh={fetchConversations}
       />
     </SafeAreaView>
   );
+};
+
+const colors = {
+  textPrimary: '#333',
+  textSecondary: '#666',
+  primary: '#007BFF',
 };
 
 const styles = StyleSheet.create({

@@ -1,29 +1,90 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Send } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
-import { useChat } from '../context/ChatContext';
+import  supabase  from '../services/supabase';
 
 const ChatScreen = ({ route }) => {
-  const { conversationId, participantId } = route.params;
+  const { conversationId } = route.params;
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const { messages, addMessage } = useChat();
+  const [loading, setLoading] = useState(true);
   const flatListRef = useRef(null);
   const inputHeight = useRef(new Animated.Value(40)).current;
+  const [user, setUser] = useState(null);
 
-  const handleSend = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: Date.now().toString(),
-        senderId: 1, // Current user ID
-        receiverId: participantId,
-        text: newMessage.trim(),
-        timestamp: new Date(),
-      };
-      addMessage(conversationId, message);
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    fetchMessages();
+    subscribeToMessages();
+  }, [conversationId]);
+
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const subscribeToMessages = () => {
+    const subscription = supabase
+      .channel(`room:${conversationId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      }, payload => {
+        setMessages(current => [...current, payload.new]);
+        flatListRef.current?.scrollToEnd();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  };
+
+  const handleSend = async () => {
+    if (!newMessage.trim()) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId, // Ensure this is a UUID
+          sender_id: user.id,
+          text: newMessage.trim(),
+          created_at: new Date().toISOString(),
+          read: false
+        });
+
+      if (error) throw error;
       setNewMessage('');
       flatListRef.current?.scrollToEnd();
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
   };
 
@@ -53,24 +114,24 @@ const ChatScreen = ({ route }) => {
       >
         <FlatList
           ref={flatListRef}
-          data={messages[conversationId] || []}
+          data={messages || []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messagesList}
           onLayout={() => flatListRef.current?.scrollToEnd()}
           renderItem={({ item }) => (
             <View style={[
               styles.messageBubble,
-              item.senderId === 1 ? styles.sentMessage : styles.receivedMessage
+              item.sender_id === user?.id ? styles.sentMessage : styles.receivedMessage
             ]}>
               <Text style={[
                 styles.messageText,
-                item.senderId === 1 ? styles.sentMessageText : styles.receivedMessageText
+                item.sender_id === user?.id ? styles.sentMessageText : styles.receivedMessageText
               ]}>
                 {item.text}
               </Text>
               <Text style={[
                 styles.timestamp,
-                item.senderId === 1 ? styles.sentTimestamp : styles.receivedTimestamp
+                item.sender_id === user?.id ? styles.sentTimestamp : styles.receivedTimestamp
               ]}>
                 {formatTime(item.timestamp)}
               </Text>

@@ -1,57 +1,142 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   FlatList, 
   TouchableOpacity, 
-  TextInput 
+  TextInput,
+  Image,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, MessageCircle } from 'lucide-react-native';
+import { useChat } from '../../context/ChatContext';
+import { useNavigation } from '@react-navigation/native';
+import supabase from '../../services/supabase';
 
 const TutorMessagesScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { conversations, addConversation } = useChat();
+  const navigation = useNavigation();
 
-  const mockChats = [
-    {
-      id: '1',
-      studentName: 'Alice Johnson',
-      lastMessage: 'See you tomorrow at 3 PM!',
-      timestamp: '10:30 AM',
-      unread: 2,
-    },
-    {
-      id: '2',
-      studentName: 'Bob Smith',
-      lastMessage: 'Thanks for the help with calculus',
-      timestamp: 'Yesterday',
-      unread: 0,
-    },
-  ];
+  useEffect(() => {
+    fetchConversations();
+  }, []);
+
+  const fetchConversations = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: conversationsData, error } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          student_id,
+          last_message,
+          updated_at,
+          profiles!inner(
+            user_id,
+            name,
+            image_url
+          ),
+          messages(*)
+        `)
+        .eq('tutor_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedConversations = conversationsData?.map(conv => ({
+        id: conv.id,
+        participant_id: conv.student_id,
+        participant_name: conv.profiles?.name,
+        participant_image: conv.profiles?.image_url,
+        last_message: conv.last_message || '',
+        updated_at: conv.updated_at
+      }));
+
+      formattedConversations?.forEach(conv => addConversation(conv));
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartChat = async (studentId: string, studentName: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
+
+      // Check for existing conversation
+      const { data: existingConv, error: searchError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('tutor_id', user.id)
+        .single();
+
+      if (searchError && searchError.code !== 'PGRST116') throw searchError;
+
+      if (existingConv) {
+        navigation.navigate('Chat', {
+          conversationId: existingConv.id,
+          participantId: studentId,
+          participantName: studentName
+        });
+        return;
+      }
+
+      // Create new conversation
+      const { data: newConv, error: createError } = await supabase
+        .from('conversations')
+        .insert({
+          student_id: studentId,
+          tutor_id: user.id
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      navigation.navigate('Chat', {
+        conversationId: newConv.id,
+        participantId: studentId,
+        participantName: studentName
+      });
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      Alert.alert('Error', 'Failed to start chat');
+    }
+  };
 
   const renderChatItem = ({ item }) => (
-    <TouchableOpacity style={styles.chatItem}>
+    <TouchableOpacity 
+      style={styles.chatItem}
+      onPress={() => navigation.navigate('Chat', {
+        conversationId: item.id,
+        participantName: item.name
+      })}
+    >
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {item.studentName.charAt(0)}
-        </Text>
+        {item.image_url ? (
+          <Image source={{ uri: item.image_url }} style={styles.avatarImage} />
+        ) : (
+          <Text style={styles.avatarText}>
+            {item.name ? item.name.charAt(0).toUpperCase() : '?'}
+          </Text>
+        )}
       </View>
       <View style={styles.chatInfo}>
-        <View style={styles.chatHeader}>
-          <Text style={styles.studentName}>{item.studentName}</Text>
-          <Text style={styles.timestamp}>{item.timestamp}</Text>
-        </View>
-        <View style={styles.messageRow}>
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage}
-          </Text>
-          {item.unread > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadCount}>{item.unread}</Text>
-            </View>
-          )}
-        </View>
+        <Text style={styles.name}>{item.name}</Text>
+        <Text style={styles.lastMessage} numberOfLines={1}>
+          {item.lastMessage || 'No messages yet'}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -61,29 +146,19 @@ const TutorMessagesScreen = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
       </View>
-
-      <View style={styles.searchContainer}>
-        <Search size={20} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search messages..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {mockChats.length > 0 ? (
-        <FlatList
-          data={mockChats}
-          renderItem={renderChatItem}
-          keyExtractor={item => item.id}
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <MessageCircle size={48} color="#CCC" />
-          <Text style={styles.emptyStateText}>No messages yet</Text>
-        </View>
-      )}
+      
+      <FlatList
+        data={conversations}
+        renderItem={renderChatItem}
+        keyExtractor={item => item.id}
+        ListEmptyComponent={
+          !loading && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No messages yet</Text>
+            </View>
+          )
+        }
+      />
     </SafeAreaView>
   );
 };

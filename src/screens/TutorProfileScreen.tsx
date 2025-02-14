@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { formatSpecializations } from '../utils/formatSpecializations';
+import  supabase  from '../services/supabase';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.55;
@@ -30,25 +31,49 @@ const TutorProfileScreen = ({ route }) => {
     }
     setIsFav(!isFav);
   };
-  const handleStartChat = () => {
-    const existingConversation = conversations.find(c => c.participantId === tutor.id);
-    
-    if (!existingConversation) {
-      const conversation = {
-        id: Date.now(),
-        participantId: tutor.id,
-        name: tutor.name,
-        lastMessage: '',
-        time: 'New',
-        unread: 0,
-        image_url: tutor.image_url
-      };
-      
-      addConversation(conversation);
+
+  const handleStartChat = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check for existing conversation
+      const { data: existingConv, error: fetchError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('student_id', user.id)
+        .eq('tutor_id', tutor.user_id) // Use tutor.user_id instead of tutor.id
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+
+      let conversationId;
+      if (existingConv) {
+        conversationId = existingConv.id;
+      } else {
+        // Create new conversation
+        const { data: newConv, error: createError } = await supabase
+          .from('conversations')
+          .insert({
+            student_id: user.id,
+            tutor_id: tutor.user_id // Use tutor.user_id instead of tutor.id
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        conversationId = newConv.id;
+      }
+
+      // Navigate to chat
       navigation.navigate('Chat', {
-        conversationId: conversation.id,
-        participantId: tutor.id
+        conversationId,
+        participantId: tutor.user_id
       });
+    } catch (error) {
+      console.error('Error starting chat:', error);
     }
   };
 
