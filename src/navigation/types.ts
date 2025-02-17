@@ -23,8 +23,9 @@ export type RootStackParamList = {
     };
   };
   Chat: {
-    conversationId: number;
-    participantId: number;
+    conversationId: string;
+    participantId: string;
+    participantName: string;
   };
   TutorDashboard: undefined;
   MainApp: undefined;

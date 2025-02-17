@@ -4,8 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Send } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
 import  supabase  from '../services/supabase';
+import { useChat } from '../context/ChatContext';
 
 const ChatScreen = ({ route }) => {
+  const { setActiveConversationId } = useChat();
   const { conversationId, participantId, participantName } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -27,11 +29,13 @@ const ChatScreen = ({ route }) => {
     fetchMessages();
     const subscription = subscribeToMessages();
     resetUnreadCount(); // Reset count when entering chat
-    
+    setActiveConversationId(conversationId); // Set active conversation when entering
+
     return () => {
       if (subscription) {
         supabase.removeChannel(subscription);
       }
+      setActiveConversationId(null); // Clear active conversation when leaving
     };
   }, [conversationId]);
 
@@ -83,17 +87,47 @@ const ChatScreen = ({ route }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { error } = await supabase
+      // Check if user is student or tutor
+      const { data: studentProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      // Update conversation with last message
+      const { error: convError } = await supabase
+        .from('conversations')
+        .update({
+          last_message: newMessage.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversationId);
+
+      if (convError) throw convError;
+
+      // Insert the message
+      const { error: messageError } = await supabase
         .from('messages')
         .insert({
-          conversation_id: conversationId, // Ensure this is a UUID
+          conversation_id: conversationId,
           sender_id: user.id,
           text: newMessage.trim(),
           created_at: new Date().toISOString(),
           read: false
         });
 
-      if (error) throw error;
+      if (messageError) throw messageError;
+
+      // Increment unread count for the recipient only
+      const rpcFunction = studentProfile 
+        ? 'increment_tutor_unread_count' 
+        : 'increment_student_unread_count';
+
+      const { error: rpcError } = await supabase
+        .rpc(rpcFunction, { conversation_id: conversationId });
+
+      if (rpcError) throw rpcError;
+
       setNewMessage('');
       flatListRef.current?.scrollToEnd();
     } catch (error) {

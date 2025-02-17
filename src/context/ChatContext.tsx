@@ -26,6 +26,8 @@ interface ChatContextType {
   addConversation: (conversation: Conversation) => void;
   addMessage: (conversationId: string, text: string) => Promise<void>;
   markAsRead: (conversationId: string) => Promise<void>;
+  activeConversationId: string | null;
+  setActiveConversationId: (id: string | null) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -33,7 +35,9 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<{ [conversationId: string]: Message[] }>({});
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
+  
   const addConversation = (conversation: Conversation) => {
     setConversations(prev => {
       const existingIndex = prev.findIndex(conv => conv.id === conversation.id);
@@ -175,7 +179,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       messages,
       addConversation,
       addMessage,
-      markAsRead
+      markAsRead,
+      activeConversationId,
+      setActiveConversationId
     }}>
       {children}
     </ChatContext.Provider>

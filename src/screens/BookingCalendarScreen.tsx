@@ -5,13 +5,9 @@ import { TimeSlot } from '../types/booking';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { format, parseISO, addDays } from 'date-fns';
 import  supabase  from '../services/supabase'; // Assuming you have a supabase client setup
-
-/*
-const timeSlots = [
-  '09:00', '10:00', '11:00', '12:00', '13:00',
-  '14:00', '15:00', '16:00', '17:00', '18:00'
-];
-*/
+import { useRequireAuth } from '../hooks/useRequireAuth';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { BookingScreenProps } from '../types/booking';
 
 interface TutorAvailability {
   weeklySchedule: {
@@ -54,7 +50,8 @@ const generateTimeSlots = (start: string, end: string) => {
   return slots;
 };
 
-const BookingCalendarScreen = () => {
+const BookingCalendarContent = () => {
+  const { user } = useRequireAuth();
   const navigation = useNavigation();
   const route = useRoute();
   const { tutorId, tutorName, price } = route.params;
@@ -66,21 +63,39 @@ const BookingCalendarScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
 
+  const handleError = (error: any) => {
+    console.error('Calendar error:', error);
+    Alert.alert(
+      'Error',
+      'Unable to load availability. Please try again.',
+      [
+        {
+          text: 'Retry',
+          onPress: () => fetchTutorAvailability()
+        }
+      ]
+    );
+  };
+
   // Get tutor's availability when component mounts
   useEffect(() => {
     const fetchTutorAvailability = async () => {
-      const { data, error } = await supabase
-        .from('tutors')
-        .select('availability')
-        .eq('id', tutorId)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching tutor availability:', error);
-        return;
+      try {
+        const { data, error } = await supabase
+          .from('tutors')
+          .select('availability')
+          .eq('id', tutorId)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching tutor availability:', error);
+          return;
+        }
+        
+        setTutorAvailability(data?.availability);
+      } catch (error) {
+        handleError(error);
       }
-      
-      setTutorAvailability(data?.availability);
     };
 
     fetchTutorAvailability();
@@ -343,6 +358,12 @@ const BookingCalendarScreen = () => {
     </View>
   );
 };
+
+const BookingCalendarScreen = () => (
+  <ErrorBoundary>
+    <BookingCalendarContent />
+  </ErrorBoundary>
+);
 
 const styles = StyleSheet.create({
   container: {

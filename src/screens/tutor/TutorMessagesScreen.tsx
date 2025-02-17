@@ -8,15 +8,19 @@ import {
   Image,
   Alert,
   ActivityIndicator,
-  AppState
+  AppState,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import supabase from '../../services/supabase';
 import * as Notifications from 'expo-notifications';
+import { setBadgeCountSafely, setupNotifications, scheduleLocalNotification } from '../../utils/notifications';
+import { useChat } from '../../context/ChatContext';  // Changed from '../../hooks/useChat'
 
 const TutorMessagesScreen = () => {
+  const { activeConversationId } = useChat();
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
   const navigation = useNavigation();
@@ -39,22 +43,48 @@ const TutorMessagesScreen = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Subscribe to real-time updates for the conversations table
+      const conversationsSubscription = supabase
+        .channel('tutor-conversations-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `tutor_id=eq.${user.id}`,
+        }, () => {
+          // Refresh conversations when any change occurs
+          fetchConversationsData();
+        })
+        .subscribe();
+
+      // Initial fetch
+      fetchConversationsData();
+
+      return () => {
+        supabase.removeChannel(conversationsSubscription);
+      };
+    } catch (error) {
+      console.error('Error in conversations setup:', error);
+    }
+  };
+
+  const fetchConversationsData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data: conversationsData, error } = await supabase
         .from('conversations')
         .select(`
           id,
-          student_id,
+          tutor_id,
           updated_at,
           tutor_unread_count,
+          last_message,
+          student_id,
           profiles:student_id(
             name,
             image_url
-          ),
-          messages(
-            id,
-            text,
-            created_at,
-            sender_id
           )
         `)
         .eq('tutor_id', user.id)
@@ -62,21 +92,15 @@ const TutorMessagesScreen = () => {
 
       if (error) throw error;
 
-      const formattedConversations = conversationsData.map(conv => {
-        const latestMessage = conv.messages.sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
-
-        return {
-          id: conv.id,
-          studentId: conv.student_id,
-          studentName: conv.profiles?.name || 'Unknown Student',
-          studentImage: conv.profiles?.image_url,
-          lastMessage: latestMessage?.text || 'Start a conversation',
-          updatedAt: conv.updated_at,
-          unreadCount: conv.tutor_unread_count || 0
-        };
-      });
+      const formattedConversations = conversationsData.map(conv => ({
+        id: conv.id,
+        studentId: conv.student_id,
+        studentName: conv.profiles?.name || 'Unknown Student',
+        studentImage: conv.profiles?.image_url,
+        lastMessage: conv.last_message || 'Start a conversation',
+        updatedAt: conv.updated_at,
+        unreadCount: conv.tutor_unread_count || 0
+      }));
 
       setConversations(formattedConversations);
     } catch (error) {
@@ -84,28 +108,6 @@ const TutorMessagesScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const setupNotifications = async () => {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      return;
-    }
-
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
-    });
   };
 
   const handleAppStateChange = (nextAppState: string) => {
@@ -129,7 +131,8 @@ const TutorMessagesScreen = () => {
           const conversationId = payload.new.conversation_id;
           const isMessageFromOther = payload.new.sender_id !== user.id;
 
-          if (isMessageFromOther) {
+          // Don't update unread count if users are actively chatting
+          if (isMessageFromOther && activeConversationId !== conversationId) {
             // Fetch the updated conversation
             const { data: conversationData } = await supabase
               .from('conversations')
@@ -161,11 +164,23 @@ const TutorMessagesScreen = () => {
                   return conv;
                 });
                 
-                // Sort by latest message
                 return [...updatedConversations].sort((a, b) => 
                   new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
                 );
               });
+
+              // Update badge count only if not in active conversation
+              if (activeConversationId !== conversationId) {
+                const totalUnread = conversations.reduce((acc, conv) => acc + conv.unreadCount, 0);
+                await setBadgeCountSafely(totalUnread);
+
+                await scheduleLocalNotification(
+                  `New message from ${conversationData.profiles?.name || 'Unknown Student'}`,
+                  payload.new.text,
+                  activeConversationId,
+                  conversationId
+                );
+              }
             }
           }
         }

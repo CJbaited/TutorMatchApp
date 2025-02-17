@@ -3,21 +3,35 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, 
 import { Check } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import  supabase  from '../services/supabase';
+import { useRequireAuth } from '../hooks/useRequireAuth';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { BookingScreenProps } from '../types/booking';
 
-const BookingConfirmationScreen = () => {
+const BookingConfirmationContent = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { tutorId, tutorName, price, date, time, paymentMethod } = route.params;
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useRequireAuth();
+
+  const handleError = async (error: any) => {
+    console.error('Booking error:', error);
+    let message = 'An unexpected error occurred';
+    
+    if (error.code === '23505') {
+      message = 'This time slot is no longer available';
+    } else if (error.code === '23503') {
+      message = 'Invalid tutor or student reference';
+    }
+    
+    Alert.alert('Error', message);
+  };
 
   const handleConfirm = async () => {
     try {
       setIsLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
-        Alert.alert('Error', 'User not authenticated');
-        return;
+        throw new Error('User not authenticated');
       }
 
       // Format the date and time properly
@@ -54,8 +68,7 @@ const BookingConfirmationScreen = () => {
 
       navigation.navigate('BookingSuccess');
     } catch (error) {
-      console.error('Booking error:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      await handleError(error);
     } finally {
       setIsLoading(false);
     }
@@ -111,6 +124,12 @@ const BookingConfirmationScreen = () => {
     </ScrollView>
   );
 };
+
+const BookingConfirmationScreen = () => (
+  <ErrorBoundary>
+    <BookingConfirmationContent />
+  </ErrorBoundary>
+);
 
 const styles = StyleSheet.create({
   container: {

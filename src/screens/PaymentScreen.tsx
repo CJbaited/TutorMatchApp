@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { CreditCard, DollarSign } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useRequireAuth } from '../hooks/useRequireAuth';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { BookingScreenProps } from '../types/booking';
 
-const PaymentScreen = () => {
+const PaymentScreenContent = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { tutorName, price, date, time } = route.params;
   const [selectedMethod, setSelectedMethod] = useState('card');
+  const { user } = useRequireAuth();
 
   const handleConfirm = () => {
     navigation.navigate('BookingConfirmation', {
@@ -67,6 +71,12 @@ const PaymentScreen = () => {
     </ScrollView>
   );
 };
+
+const PaymentScreen = () => (
+  <ErrorBoundary>
+    <PaymentScreenContent />
+  </ErrorBoundary>
+);
 
 const styles = StyleSheet.create({
   container: {

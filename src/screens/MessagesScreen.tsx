@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -18,22 +18,99 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Trash2 } from 'lucide-react-native';
 import { format } from 'date-fns';
 import * as Notifications from 'expo-notifications';
+import { setBadgeCountSafely, setupNotifications, scheduleLocalNotification } from '../utils/notifications';
 
 const MessagesScreen = () => {
+  const { conversations, addConversation, activeConversationId } = useChat();
   const [loading, setLoading] = useState(true);
-  const { conversations, addConversation, deleteConversation } = useChat();
   const navigation = useNavigation();
 
+  const fetchConversations = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Subscribe to real-time updates for the conversations table
+      const conversationsSubscription = supabase
+        .channel('conversations-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `student_id=eq.${user.id}`,
+        }, () => {
+          // Refresh conversations when any change occurs
+          fetchConversationsData();
+        })
+        .subscribe();
+
+      // Initial fetch
+      fetchConversationsData();
+
+      return () => {
+        supabase.removeChannel(conversationsSubscription);
+      };
+    } catch (error) {
+      console.error('Error in conversations setup:', error);
+    }
+  };
+
+  const fetchConversationsData = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: conversationsData, error } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          tutor_id,
+          updated_at,
+          student_unread_count,
+          last_message,
+          tutors:tutors!inner(
+            name,
+            image_url
+          )
+        `)
+        .eq('student_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedConversations = conversationsData.map(conv => ({
+        id: conv.id,
+        participant_id: conv.tutor_id,
+        participant_name: conv.tutors?.name || 'Unknown Tutor',
+        participant_image: conv.tutors?.image_url,
+        last_message: conv.last_message,
+        updated_at: conv.updated_at,
+        unread_count: conv.student_unread_count || 0
+      }));
+
+      // Use addConversation from context for each conversation
+      formattedConversations.forEach(conv => addConversation(conv));
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchConversations();
-    const subscription = setupMessageSubscription();
-    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
-    setupNotifications();
-    return () => {
-      if (subscription) {
-        supabase.removeChannel(subscription);
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        fetchConversationsData(); // Refresh data when app comes to foreground
       }
-      appStateSubscription.remove();
+    });
+
+    fetchConversations(); // Initial fetch
+    setupNotifications();
+
+    return () => {
+      subscription.remove();
+      supabase.removeAllChannels();
     };
   }, []);
 
@@ -52,8 +129,21 @@ const MessagesScreen = () => {
           const conversationId = payload.new.conversation_id;
           const isMessageFromOther = payload.new.sender_id !== user.id;
 
-          if (isMessageFromOther) {
-            // Fetch the updated conversation
+          // Don't update unread count for own messages
+          if (!isMessageFromOther) {
+            const existingConv = conversations.find(c => c.id === conversationId);
+            if (existingConv) {
+              addConversation({
+                ...existingConv,
+                last_message: payload.new.text,
+                updated_at: payload.new.created_at
+              });
+            }
+            return;
+          }
+
+          // Handle messages from others
+          if (activeConversationId !== conversationId) {
             const { data: conversationData } = await supabase
               .from('conversations')
               .select(`
@@ -61,7 +151,6 @@ const MessagesScreen = () => {
                 tutor_id,
                 updated_at,
                 student_unread_count,
-                last_message,
                 tutors:tutors!inner(
                   name,
                   image_url
@@ -87,87 +176,9 @@ const MessagesScreen = () => {
       .subscribe();
   };
 
-  const setupNotifications = async () => {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      return;
-    }
-
-    // Configure notification behavior
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
-    });
-  };
-
   const handleAppStateChange = (nextAppState: string) => {
     if (nextAppState === 'active') {
       fetchConversations(); // Refresh conversations when app comes to foreground
-    }
-  };
-
-  const fetchConversations = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: conversationsData, error } = await supabase
-        .from('conversations')
-        .select(`
-          id,
-          tutor_id,
-          updated_at,
-          student_unread_count,
-          tutors:tutors!inner(
-            name,
-            image_url
-          ),
-          messages(
-            id,
-            text,
-            created_at,
-            sender_id
-          )
-        `)
-        .eq('student_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-
-      const formattedConversations = conversationsData.map(conv => {
-        // Sort messages by created_at to get the latest message
-        const sortedMessages = conv.messages.sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-
-        return {
-          id: conv.id,
-          participant_id: conv.tutor_id,
-          participant_name: conv.tutors?.name || 'Unknown Tutor',
-          participant_image: conv.tutors?.image_url,
-          last_message: sortedMessages[0]?.text || 'Start a conversation',
-          updated_at: conv.updated_at,
-          unread_count: conv.student_unread_count || 0
-        };
-      });
-
-      // Clear existing conversations before adding new ones
-      conversations.forEach(conv => deleteConversation(conv.id));
-      formattedConversations.forEach(conv => addConversation(conv));
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -176,24 +187,7 @@ const MessagesScreen = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if user is a student or tutor
-      const { data: studentProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      const updateColumn = studentProfile ? 'student_unread_count' : 'tutor_unread_count';
-
-      // Reset unread count
-      const { error } = await supabase
-        .from('conversations')
-        .update({ [updateColumn]: 0 })
-        .eq('id', conversationId);
-
-      if (error) throw error;
-
-      // Update local state
+      // Reset unread count immediately in local state
       const updatedConv = conversations.find(c => c.id === conversationId);
       if (updatedConv) {
         addConversation({
@@ -201,6 +195,14 @@ const MessagesScreen = () => {
           unread_count: 0
         });
       }
+
+      // Reset in database
+      const { error } = await supabase
+        .from('conversations')
+        .update({ student_unread_count: 0 })
+        .eq('id', conversationId);
+
+      if (error) throw error;
 
       // Navigate to chat
       navigation.navigate('Chat', {

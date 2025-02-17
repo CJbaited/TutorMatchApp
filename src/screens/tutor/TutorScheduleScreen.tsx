@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 import { Clock, MapPin, Calendar as LucideCalendar, X, MessageCircle, AlertTriangle } from 'lucide-react-native';
@@ -21,6 +21,24 @@ interface Booking {
   }
 }
 
+// Add these helper functions before the component
+const isBookingTimeReached = (date: string, time: string): boolean => {
+  const bookingDateTime = new Date(`${date}T${time}`);
+  const now = new Date();
+  return now >= bookingDateTime;
+};
+
+const formatTimeForDisplay = (time: string): string => {
+  return format(new Date(`2000-01-01T${time}`), 'h:mm a');
+};
+
+const TABS = [
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'today', label: 'Today' },
+  { id: 'calendar', label: 'Calendar' },
+  { id: 'past', label: 'Past' }
+];
+
 const TutorScheduleScreen = () => {
   const navigation = useNavigation();
   const { addConversation, conversations } = useChat();
@@ -31,6 +49,7 @@ const TutorScheduleScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('upcoming');
 
   useEffect(() => {
     fetchBookings();
@@ -120,10 +139,16 @@ const TutorScheduleScreen = () => {
     return bookings.filter(booking => booking.date === selectedDate);
   };
 
+  // Update the renderBookingCard function to properly show action buttons
   const renderBookingCard = (booking: Booking) => (
     <TouchableOpacity 
       key={booking.id} 
-      style={styles.sessionCard}
+      style={[
+        styles.sessionCard,
+        isBookingTimeReached(booking.date, booking.time) && booking.status === 'confirmed' 
+          ? styles.activeSessionCard 
+          : null
+      ]}
       onPress={() => {
         setSelectedBooking(booking);
         setModalVisible(true);
@@ -221,43 +246,196 @@ const TutorScheduleScreen = () => {
 
   const handleStartChat = async (studentId: string, studentName: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+  
       // Check for existing conversation
-      const { data: existingConv, error: searchError } = await supabase
+      const { data: existingConv, error: fetchError } = await supabase
         .from('conversations')
         .select('id')
         .eq('student_id', studentId)
         .eq('tutor_id', user.id)
         .single();
   
-      if (searchError && searchError.code !== 'PGRST116') throw searchError;
-  
-      if (existingConv) {
-        navigation.navigate('Chat', {
-          conversationId: existingConv.id,
-          participantId: studentId
-        });
-        return;
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
       }
   
-      // Create new conversation
-      const { data: newConv, error: createError } = await supabase
-        .from('conversations')
-        .insert({
-          student_id: studentId,
-          tutor_id: user.id
-        })
-        .select()
-        .single();
+      let conversationId;
+      if (existingConv) {
+        conversationId = existingConv.id;
+      } else {
+        // Create new conversation
+        const { data: newConv, error: createError } = await supabase
+          .from('conversations')
+          .insert({
+            student_id: studentId,
+            tutor_id: user.id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
   
-      if (createError) throw createError;
+        if (createError) throw createError;
+        conversationId = newConv.id;
+      }
   
+      // Close modal before navigation
+      setModalVisible(false);
+      
+      // Navigate to chat
       navigation.navigate('Chat', {
-        conversationId: newConv.id,
-        participantId: studentId
+        conversationId,
+        participantId: studentId,
+        participantName: studentName
       });
     } catch (error) {
       console.error('Error starting chat:', error);
       Alert.alert('Error', 'Failed to start chat');
+    }
+  };
+
+  const canCompleteSession = (booking: Booking) => {
+    if (booking.status !== 'confirmed' || !booking.started_at) return false;
+    
+    const startTime = new Date(booking.started_at);
+    const now = new Date();
+    const hoursSinceStart = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+    
+    return hoursSinceStart >= 1; // Can complete after 1 hour
+  };
+
+  const handleStartSession = async (bookingId: string) => {
+    try {
+      setActionLoading(true);
+      
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          started_at: new Date().toISOString(),
+          status: 'in_progress'
+        })
+        .eq('id', bookingId);
+        
+      if (error) throw error;
+
+      fetchBookings(); // Refresh the list
+      Alert.alert('Success', 'Session started successfully');
+    } catch (error) {
+      console.error('Error starting session:', error);
+      Alert.alert('Error', 'Failed to start session');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCompleteSession = async (bookingId: string) => {
+    try {
+      setActionLoading(true);
+      
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          completed_at: new Date().toISOString(),
+          status: 'completed',
+          completion_type: 'manual'
+        })
+        .eq('id', bookingId);
+        
+      if (error) throw error;
+
+      // Trigger payment processing if needed
+      await supabase.functions.invoke('process-session-payment', {
+        body: { bookingId }
+      });
+
+      fetchBookings(); // Refresh the list
+      Alert.alert('Success', 'Session completed successfully');
+    } catch (error) {
+      console.error('Error completing session:', error);
+      Alert.alert('Error', 'Failed to complete session');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Update the canStartSession function
+  const canStartSession = (booking: Booking): boolean => {
+    if (booking.status !== 'confirmed') return false;
+    return isBookingTimeReached(booking.date, booking.time);
+  };
+
+  const getTodayBookings = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return bookings.filter(booking => booking.date === today);
+  };
+
+  const getUpcomingBookings = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return bookings
+      .filter(booking => booking.date > today)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
+  const getPastBookings = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return bookings
+      .filter(booking => booking.date < today)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'upcoming':
+        return (
+          <ScrollView style={styles.tabContent}>
+            {getUpcomingBookings().map(renderBookingCard)}
+          </ScrollView>
+        );
+      case 'today':
+        return (
+          <ScrollView style={styles.tabContent}>
+            {getTodayBookings().map(renderBookingCard)}
+          </ScrollView>
+        );
+      case 'calendar':
+        return (
+          <ScrollView style={styles.tabContent}>
+            <Calendar
+              onDayPress={day => setSelectedDate(day.dateString)}
+              markedDates={{
+                ...markedDates,
+                [selectedDate]: {
+                  ...(markedDates[selectedDate] || {}),
+                  selected: true,
+                  selectedColor: '#084843'
+                }
+              }}
+              theme={{
+                todayTextColor: '#084843',
+                selectedDayBackgroundColor: '#084843',
+              }}
+            />
+            {selectedDate && (
+              <View style={styles.selectedDateSessions}>
+                <Text style={styles.dateHeader}>
+                  Sessions for {format(new Date(selectedDate), 'MMMM d, yyyy')}
+                </Text>
+                {getBookingsForDate().map(renderBookingCard)}
+              </View>
+            )}
+          </ScrollView>
+        );
+      case 'past':
+        return (
+          <ScrollView style={styles.tabContent}>
+            {getPastBookings().map(renderBookingCard)}
+          </ScrollView>
+        );
     }
   };
 
@@ -275,43 +453,27 @@ const TutorScheduleScreen = () => {
         <Text style={styles.headerTitle}>Schedule</Text>
       </View>
 
-      <ScrollView style={styles.content}>
-        <Calendar
-          onDayPress={day => setSelectedDate(day.dateString)}
-          markedDates={{
-            ...markedDates,
-            [selectedDate]: {
-              ...(markedDates[selectedDate] || {}),
-              selected: true,
-              selectedColor: '#084843'
-            }
-          }}
-          theme={{
-            todayTextColor: '#084843',
-            selectedDayBackgroundColor: '#084843',
-          }}
-        />
+      <View style={styles.tabsContainer}>
+        {TABS.map(tab => (
+          <TouchableOpacity
+            key={tab.id}
+            style={[
+              styles.tab,
+              activeTab === tab.id && styles.activeTab
+            ]}
+            onPress={() => setActiveTab(tab.id)}
+          >
+            <Text style={[
+              styles.tabText,
+              activeTab === tab.id && styles.activeTabText
+            ]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-        <View style={styles.sessionsContainer}>
-          <Text style={styles.sectionTitle}>
-            {selectedDate ? `Sessions for ${format(new Date(selectedDate), 'MMMM d, yyyy')}` : 'Upcoming Sessions'}
-          </Text>
-          
-          {selectedDate ? (
-            getBookingsForDate().length > 0 ? (
-              getBookingsForDate().map(renderBookingCard)
-            ) : (
-              <Text style={styles.noSessionsText}>No sessions scheduled for this date</Text>
-            )
-          ) : (
-            bookings
-              .filter(b => new Date(b.date) >= new Date())
-              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-              .slice(0, 5)
-              .map(renderBookingCard)
-          )}
-        </View>
-      </ScrollView>
+      {renderContent()}
 
       <Modal
         visible={modalVisible}
@@ -435,6 +597,42 @@ const TutorScheduleScreen = () => {
                       </TouchableOpacity>
                     </View>
                   )}
+
+                  {selectedBooking.status === 'confirmed' && !selectedBooking.started_at && (
+                    <TouchableOpacity 
+                      style={[
+                        styles.sessionButton,
+                        {
+                          backgroundColor: canStartSession(selectedBooking) ? '#4CAF50' : '#ccc'
+                        }
+                      ]}
+                      onPress={() => handleStartSession(selectedBooking.id)}
+                      disabled={!canStartSession(selectedBooking) || actionLoading}
+                    >
+                      {actionLoading ? (
+                        <ActivityIndicator color="#FFF" size="small" />
+                      ) : (
+                        <>
+                          <Text style={styles.actionButtonText}>
+                            {canStartSession(selectedBooking) 
+                              ? 'Start Session' 
+                              : `Available at ${formatTimeForDisplay(selectedBooking.time)}`
+                            }
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
+
+                  {selectedBooking.status === 'confirmed' && selectedBooking.started_at && canCompleteSession(selectedBooking) && (
+                    <TouchableOpacity 
+                      style={[styles.sessionButton, { backgroundColor: '#4CAF50' }]}
+                      onPress={() => handleCompleteSession(selectedBooking.id)}
+                      disabled={actionLoading}
+                    >
+                      <Text style={styles.actionButtonText}>Complete Session</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             )}
@@ -444,6 +642,7 @@ const TutorScheduleScreen = () => {
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -559,7 +758,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modalBody: {
-    marginBottom: 20,
+    marginBottom: Platform.OS === 'ios' ? 40 : 0,
   },
   detailLabel: {
     fontSize: 16,
@@ -595,6 +794,15 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 16,
     borderRadius: 8,
+    minHeight: 52,
+    marginBottom: Platform.OS === 'ios' ? 8 : 0,
+  },
+  sessionButton: {
+    backgroundColor: '#4CAF50',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: Platform.OS === 'ios' ? 8 : 0,
   },
   actionButtonsRow: {
     flexDirection: 'row',
@@ -608,6 +816,54 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.7,
   },
+  activeSessionCard: {
+    borderColor: '#4CAF50',
+    borderWidth: 2,
+  },
+  disabledText: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: '#084843',
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: '#084843',
+    fontWeight: '600',
+  },
+  tabContent: {
+    flex: 1,
+    padding: 16,
+  },
+  dateHeader: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginVertical: 12,
+  },
+  selectedDateSessions: {
+    marginTop: 16,
+  }
 });
 
 export default TutorScheduleScreen;
