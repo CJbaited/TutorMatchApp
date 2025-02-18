@@ -845,11 +845,11 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '400',
   },
   activeTabText: {
     color: '#084843',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   tabContent: {
     flex: 1,
