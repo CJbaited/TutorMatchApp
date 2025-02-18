@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Calendar, BarChart2, Settings, MessageCircle } from 'lucide-react-native';
 import TutorHomeScreen from '../screens/tutor/TutorHomeScreen';
@@ -19,8 +20,8 @@ const TutorTabNavigator = () => {
           backgroundColor: '#FFF',
           borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
-          height: 60,
-          paddingBottom: 8,
+          height: Platform.OS === 'ios' ? 80 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 0,
           paddingTop: 8,
         },
       }}
