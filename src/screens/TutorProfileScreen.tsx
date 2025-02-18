@@ -9,19 +9,49 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { formatSpecializations } from '../utils/formatSpecializations';
 import  supabase  from '../services/supabase';
+import { RouteProp } from '@react-navigation/native';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.55;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const TutorProfileScreen = ({ route }) => {
-  const { tutor } = route.params;
-  const { addConversation, conversations } = useChat();
+type TutorProfileScreenProps = {
+  route: RouteProp<{
+    params: {
+      tutor: {
+        id: string;
+        user_id: string;
+        name: string;
+        image_url: string;
+        affiliation: string;
+        specialization: string[];
+        rating: number;
+        reviews: number;
+        price: number;
+      };
+    };
+  }, 'params'>;
+};
+
+const TutorProfileScreen = ({ route }: TutorProfileScreenProps) => {
+  const { tutor } = route.params || {};
+  const { addConversation } = useChat();
   const navigation = useNavigation<NavigationProp>();
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
-  const [isFav, setIsFav, ] = useState(() => isFavorite(tutor.id));
+  
+  // Add null check
+  const [isFav, setIsFav] = useState(() => tutor?.id ? isFavorite(tutor.id) : false);
   const scrollY = new Animated.Value(0);
+
+  // Add null checks to all tutor property accesses
+  if (!tutor) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text>Tutor not found</Text>
+      </View>
+    );
+  }
 
   const handleFavoritePress = () => {
     if (isFav) {
@@ -413,7 +443,12 @@ const styles = StyleSheet.create({
   timeSlot: {
     fontSize: 12,
     color: '#666',
-  }
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default TutorProfileScreen;

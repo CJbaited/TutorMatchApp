@@ -14,12 +14,15 @@ export type RootStackParamList = {
   DevHome: undefined;
   TutorProfile: {
     tutor: {
-      id: number;
+      id: string;
+      user_id: string;
       name: string;
-      subject: string;
+      image_url: string;
+      affiliation: string;
+      specialization: string[];
       rating: number;
+      reviews: number;
       price: number;
-      image: any;
     };
   };
   Chat: {

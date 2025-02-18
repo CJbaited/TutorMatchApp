@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
-import { Clock, MapPin, Calendar as LucideCalendar, X, MessageCircle, AlertTriangle } from 'lucide-react-native';
+import { Clock, MapPin, Calendar as LucideCalendar, X, MessageCircle, AlertTriangle, RefreshCw } from 'lucide-react-native';
 import supabase from '../../services/supabase';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 import { useChat } from '../../context/ChatContext';
+import { CompletionCodeModal } from '../../components/booking/CompletionCodeModal';
+import { TutorBookingStatusBadge } from '../../components/booking/TutorBookingStatusBadgeProps';
 
 interface Booking {
   id: string;
@@ -32,6 +34,10 @@ const formatTimeForDisplay = (time: string): string => {
   return format(new Date(`2000-01-01T${time}`), 'h:mm a');
 };
 
+const generateCompletionCode = () => {
+  return Math.random().toString().slice(2, 8); // 6 digit code
+};
+
 const TABS = [
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'today', label: 'Today' },
@@ -50,6 +56,7 @@ const TutorScheduleScreen = () => {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [showCompletionCodeModal, setShowCompletionCodeModal] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -60,7 +67,6 @@ const TutorScheduleScreen = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Get tutor ID first
       const { data: tutorData, error: tutorError } = await supabase
         .from('tutors')
         .select('id')
@@ -72,7 +78,6 @@ const TutorScheduleScreen = () => {
         return;
       }
 
-      // 2. Fetch bookings using tutor ID
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -82,17 +87,20 @@ const TutorScheduleScreen = () => {
           time,
           status,
           price,
-          payment_method
+          payment_method,
+          started_at,
+          completed_at,
+          completion_code
         `)
         .eq('tutor_id', tutorData.id)
-        .in('status', ['pending', 'confirmed']);
+        .in('status', ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled']);
 
       if (bookingsError) {
         console.error('Bookings fetch error:', bookingsError);
         return;
       }
 
-      // 3. Get student names from profiles
+      // Get student profiles
       const studentIds = bookingsData?.map(booking => booking.student_id) || [];
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -104,7 +112,6 @@ const TutorScheduleScreen = () => {
         return;
       }
 
-      // 4. Combine the data
       const bookingsWithProfiles = bookingsData.map(booking => ({
         ...booking,
         student_profile: {
@@ -114,7 +121,6 @@ const TutorScheduleScreen = () => {
 
       setBookings(bookingsWithProfiles);
       updateMarkedDates(bookingsWithProfiles);
-
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
@@ -176,9 +182,7 @@ const TutorScheduleScreen = () => {
         </View>
   
         <View style={styles.sessionStatus}>
-          <Text style={[styles.statusText, styles[`status${booking.status}`]]}>
-            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-          </Text>
+          <TutorBookingStatusBadge status={booking.status} />
         </View>
       </View>
     </TouchableOpacity>
@@ -313,11 +317,14 @@ const TutorScheduleScreen = () => {
     try {
       setActionLoading(true);
       
+      const completionCode = generateCompletionCode();
+      
       const { error } = await supabase
         .from('bookings')
         .update({ 
           started_at: new Date().toISOString(),
-          status: 'in_progress'
+          status: 'in_progress',
+          completion_code: completionCode
         })
         .eq('id', bookingId);
         
@@ -333,31 +340,85 @@ const TutorScheduleScreen = () => {
     }
   };
 
-  const handleCompleteSession = async (bookingId: string) => {
+  const handleCompleteSession = async (code: string) => {
     try {
       setActionLoading(true);
+      
+      if (!selectedBooking) {
+        throw new Error('No booking selected');
+      }
+  
+      const { data, error: verifyError } = await supabase
+        .from('bookings')
+        .select('completion_code, completion_attempts')
+        .eq('id', selectedBooking.id)
+        .single();
+        
+      if (verifyError) throw verifyError;
+      
+      if (!data) {
+        throw new Error('Booking not found');
+      }
+  
+      if (data.completion_attempts >= 3) {
+        Alert.alert('Error', 'Too many failed attempts. Please contact support.');
+        return;
+      }
+      
+      if (data.completion_code !== code) {
+        await supabase
+          .from('bookings')
+          .update({ completion_attempts: data.completion_attempts + 1 })
+          .eq('id', selectedBooking.id);
+          
+        throw new Error('Invalid completion code');
+      }
       
       const { error } = await supabase
         .from('bookings')
         .update({ 
-          completed_at: new Date().toISOString(),
           status: 'completed',
-          completion_type: 'manual'
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', selectedBooking.id);
+        
+      if (error) throw error;
+  
+      // Close modals
+      setShowCompletionCodeModal(false);
+      setModalVisible(false);
+      
+      // Update local state and refresh bookings
+      await fetchBookings();
+      Alert.alert('Success', 'Session completed successfully');
+    } catch (error) {
+      console.error('Error completing session:', error);
+      Alert.alert('Error', error.message || 'Failed to complete session');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRegenerateCode = async (bookingId: string) => {
+    try {
+      setActionLoading(true);
+      const newCode = generateCompletionCode();
+      
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          completion_code: newCode,
+          completion_attempts: 0
         })
         .eq('id', bookingId);
         
       if (error) throw error;
-
-      // Trigger payment processing if needed
-      await supabase.functions.invoke('process-session-payment', {
-        body: { bookingId }
-      });
-
-      fetchBookings(); // Refresh the list
-      Alert.alert('Success', 'Session completed successfully');
+      
+      await fetchBookings(); // Refresh the bookings list
+      Alert.alert('Success', 'New completion code generated');
     } catch (error) {
-      console.error('Error completing session:', error);
-      Alert.alert('Error', 'Failed to complete session');
+      console.error('Error regenerating code:', error);
+      Alert.alert('Error', 'Failed to generate new code');
     } finally {
       setActionLoading(false);
     }
@@ -371,7 +432,16 @@ const TutorScheduleScreen = () => {
 
   const getTodayBookings = () => {
     const today = new Date().toISOString().split('T')[0];
-    return bookings.filter(booking => booking.date === today);
+    return bookings
+      .filter(booking => 
+        booking.date === today && 
+        ['confirmed', 'in_progress'].includes(booking.status)
+      )
+      .sort((a, b) => {
+        const timeA = new Date(`2000-01-01T${a.time}`).getTime();
+        const timeB = new Date(`2000-01-01T${b.time}`).getTime();
+        return timeA - timeB;
+      });
   };
 
   const getUpcomingBookings = () => {
@@ -384,7 +454,11 @@ const TutorScheduleScreen = () => {
   const getPastBookings = () => {
     const today = new Date().toISOString().split('T')[0];
     return bookings
-      .filter(booking => booking.date < today)
+      .filter(booking => 
+        booking.date < today || 
+        booking.status === 'completed' ||
+        booking.status === 'cancelled'
+      )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
@@ -627,11 +701,35 @@ const TutorScheduleScreen = () => {
                   {selectedBooking.status === 'confirmed' && selectedBooking.started_at && canCompleteSession(selectedBooking) && (
                     <TouchableOpacity 
                       style={[styles.sessionButton, { backgroundColor: '#4CAF50' }]}
-                      onPress={() => handleCompleteSession(selectedBooking.id)}
+                      onPress={() => setShowCompletionCodeModal(true)}
                       disabled={actionLoading}
                     >
                       <Text style={styles.actionButtonText}>Complete Session</Text>
                     </TouchableOpacity>
+                  )}
+
+                  {selectedBooking.status === 'in_progress' && (
+                    <View style={styles.actionButtonsContainer}>
+                      <TouchableOpacity 
+                        style={[styles.sessionButton, { backgroundColor: '#4CAF50' }]}
+                        onPress={() => {
+                          setShowCompletionCodeModal(true);
+                          setModalVisible(false); // Close the booking details modal
+                        }}
+                        disabled={actionLoading}
+                      >
+                        <Text style={styles.actionButtonText}>Complete Session</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={[styles.actionButton, { backgroundColor: '#FF9800' }]}
+                        onPress={() => handleRegenerateCode(selectedBooking.id)}
+                        disabled={actionLoading}
+                      >
+                        <RefreshCw size={20} color="#FFF" />
+                        <Text style={styles.actionButtonText}>Regenerate Code</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               </>
@@ -639,6 +737,15 @@ const TutorScheduleScreen = () => {
           </View>
         </View>
       </Modal>
+
+      <CompletionCodeModal
+        visible={showCompletionCodeModal}
+        onClose={() => {
+          setShowCompletionCodeModal(false);
+          setModalVisible(true); // Reopen the booking details modal
+        }}
+        onSubmit={handleCompleteSession}
+      />
     </SafeAreaView>
   );
 };
@@ -863,7 +970,19 @@ const styles = StyleSheet.create({
   },
   selectedDateSessions: {
     marginTop: 16,
-  }
+  },
+  actionButtonsContainer: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
 });
 
 export default TutorScheduleScreen;

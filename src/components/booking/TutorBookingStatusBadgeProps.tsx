@@ -1,11 +1,11 @@
 import React from 'react';
 import { Text, StyleSheet, View } from 'react-native';
 
-interface BookingStatusBadgeProps {
+interface TutorBookingStatusBadgeProps {
   status: string;
 }
 
-export const BookingStatusBadge = ({ status }: { status: string }) => {
+export const TutorBookingStatusBadge = ({ status }: TutorBookingStatusBadgeProps) => {
   const getStatusStyle = () => {
     switch (status) {
       case 'confirmed':
@@ -59,39 +59,12 @@ export const BookingStatusBadge = ({ status }: { status: string }) => {
 };
 
 const styles = StyleSheet.create({
-  badge: {
-    fontSize: 14,
-    fontWeight: '500',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  statuspending: {
-    backgroundColor: '#FFF3CD',
-    color: '#856404',
-  },
-  statusconfirmed: {
-    backgroundColor: '#D4EDDA',
-    color: '#155724',
-  },
-  statuscancelled: {
-    backgroundColor: '#F8D7DA',
-    color: '#721C24',
-  },
-  statuscompleted: {
-    backgroundColor: '#CCE5FF',
-    color: '#004085',
-  },
-  statusin_progress: {
-    backgroundColor: '#E8F5E9',
-    color: '#2E7D32',
-  },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
     alignSelf: 'flex-start',
+    marginTop: 8,
   },
   statusText: {
     fontSize: 12,
