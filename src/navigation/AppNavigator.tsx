@@ -31,6 +31,7 @@ import BookingSuccessScreen from '../screens/BookingSuccessScreen';
 import BookingsScreen from '../screens/BookingsScreen';
 import TutorScheduleEditScreen from '../screens/tutor/TutorScheduleEditScreen';
 import StudentProfileScreen from '../screens/tutor/StudentProfileScreen';
+import DisputeResolutionScreen from '../screens/DisputeResolutionScreen';
 import  supabase  from '../services/supabase';
 
 const Stack = createNativeStackNavigator();
@@ -204,6 +205,14 @@ const AppNavigator = () => {
         component={StudentProfileScreen} 
         options={{
           headerShown: false
+        }}
+      />
+      <Stack.Screen 
+        name="DisputeResolution" 
+        component={DisputeResolutionScreen}
+        options={{
+          title: 'Help & Support',
+          headerShown: true,
         }}
       />
     </Stack.Navigator>

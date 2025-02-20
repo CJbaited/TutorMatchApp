@@ -207,11 +207,34 @@ const BookingCalendarContent = () => {
           slot.date === date && 
           slot.status !== 'cancelled'
         )
-        .map(slot => slot.time.slice(0, 5)); // Only take HH:MM part
+        .map(slot => slot.time.slice(0, 5));
 
-      const availableSlots = allTimeSlots.filter(
-        time => !dateOccupiedTimes.includes(time)
-      );
+      // If it's today, filter out past times
+      const now = new Date();
+      const selectedDateObj = new Date(date);
+      const isToday = selectedDateObj.toDateString() === now.toDateString();
+
+      const availableSlots = allTimeSlots.filter(time => {
+        // Filter out occupied slots
+        if (dateOccupiedTimes.includes(time)) {
+          return false;
+        }
+
+        // For today, filter out past times
+        if (isToday) {
+          const [hours, minutes] = time.split(':').map(Number);
+          const slotTime = new Date(now);
+          slotTime.setHours(hours, minutes, 0, 0);
+          
+          // Add buffer time (e.g., 15 minutes) to current time
+          const currentTime = new Date(now);
+          currentTime.setMinutes(currentTime.getMinutes() + 15);
+          
+          return slotTime > currentTime;
+        }
+
+        return true;
+      });
 
       setAvailableTimeSlots(availableSlots);
     }

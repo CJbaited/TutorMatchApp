@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Text, Modal, Alert } from 'react-native';
+import { View, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Text, Modal, Alert, ScrollView, Platform } from 'react-native';
 import { format } from 'date-fns';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { BookingCard } from '../components/booking/BookingCard';
 import { subscribeToBookings, unsubscribeFromBookings } from '../utils/bookingSubscription';
 import supabase from '../services/supabase';
 import { Booking, BookingStatus } from '../types/booking';
-import { X, AlertCircle, Star } from 'lucide-react-native';
+import { X, AlertCircle, Star, HelpCircle } from 'lucide-react-native';
 import { RatingModal } from '../components/booking/RatingModalProps';
 import { useNavigation } from '@react-navigation/native';
+import { shouldAutoCancel } from '../utils/shouldAutoCancel';
 
 interface BookingDetailModalProps {
   booking: Booking;
@@ -30,7 +31,34 @@ const BookingsScreen = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  // Move fetchBookings outside useEffect so it can be used elsewhere
+  // Add this function inside the BookingsScreen component
+  const checkAndHandleAutoCancellations = async (bookings: Booking[]) => {
+    for (const booking of bookings) {
+      const { shouldCancel, reason } = shouldAutoCancel(booking);
+      
+      if (shouldCancel) {
+        try {
+          const { error } = await supabase
+            .from('bookings')
+            .update({ 
+              status: 'cancelled',
+              cancelled_at: new Date().toISOString(),
+              cancellation_reason: reason,
+              cancellation_type: 'auto',
+              cancellation_notification_sent: true,
+              cancellation_notification_time: new Date().toISOString()
+            })
+            .eq('id', booking.id);
+            
+          if (error) throw error;
+        } catch (error) {
+          console.error('Error auto-cancelling booking:', error);
+        }
+      }
+    }
+  };
+
+  // Update the fetchBookings function to include auto-cancellation check
   const fetchBookings = async () => {
     try {
       if (!user) return;
@@ -48,6 +76,14 @@ const BookingsScreen = () => {
           completion_code,
           student_rating,
           has_rated,
+          cancelled_at,
+          cancellation_reason,
+          cancellation_type,
+          cancellation_notification_sent,
+          cancellation_notification_time,
+          restored_at,
+          restored_by,
+          restoration_reason,
           tutors (
             name
           )
@@ -55,6 +91,10 @@ const BookingsScreen = () => {
         .eq('student_id', user.id);
 
       if (error) throw error;
+      
+      // Check for bookings that need to be auto-cancelled
+      await checkAndHandleAutoCancellations(data || []);
+      
       setBookings(data || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -200,9 +240,79 @@ const BookingsScreen = () => {
   );
 };
 
+function renderCancellationDetails(booking: Booking): React.ReactNode {
+  if (booking.status !== 'cancelled') return null;
+  
+  return (
+    <View style={styles.detailSection}>
+      <Text style={styles.sectionTitle}>Cancellation Details</Text>
+      
+      {booking.cancelled_at && (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Cancelled At:</Text>
+          <Text style={styles.detailValue}>
+            {format(new Date(booking.cancelled_at), 'MMM d, yyyy h:mm a')}
+          </Text>
+        </View>
+      )}
+
+      {booking.cancellation_type && (
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Type:</Text>
+          <Text style={[styles.detailValue, styles.cancellationType]}>
+            {booking.cancellation_type.charAt(0).toUpperCase() + 
+             booking.cancellation_type.slice(1)}
+          </Text>
+        </View>
+      )}
+
+      {booking.cancellation_reason && (
+        <View style={[styles.detailRow, styles.reasonRow]}>
+          <Text style={styles.detailLabel}>Reason:</Text>
+          <Text style={[styles.detailValue, styles.reasonText]}>
+            {booking.cancellation_reason}
+          </Text>
+        </View>
+      )}
+
+      {/* Restoration information if booking was restored */}
+      {booking.restored_at && (
+        <View style={styles.restorationInfo}>
+          <Text style={styles.sectionTitle}>Booking Restored</Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Restored On:</Text>
+            <Text style={styles.detailValue}>
+              {format(new Date(booking.restored_at), 'MMM d, yyyy h:mm a')}
+            </Text>
+          </View>
+          {booking.restoration_reason && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Reason:</Text>
+              <Text style={styles.detailValue}>{booking.restoration_reason}</Text>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// Update the BookingDetailModal component
 const BookingDetailModal = ({ booking, visible, onClose, onRating }: BookingDetailModalProps) => {
   const navigation = useNavigation();
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Add handleRatingSubmit function
+  const handleRatingSubmit = async (rating: number) => {
+    try {
+      await handleRating(booking.id, booking.tutor_id, rating);
+      setShowRatingModal(false);
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert('Error', 'Failed to submit rating');
+    }
+  };
 
   const handleViewTutor = async () => {
     try {
@@ -215,31 +325,57 @@ const BookingDetailModal = ({ booking, visible, onClose, onRating }: BookingDeta
 
       if (error) throw error;
 
-      // Navigate to tutor profile with complete data
-      navigation.navigate('TutorProfile', { 
-        tutor: {
-          id: tutorData.id,
-          user_id: tutorData.user_id,
-          name: tutorData.name,
-          image_url: tutorData.image_url,
-          affiliation: tutorData.affiliation,
-          specialization: tutorData.specialization,
-          rating: tutorData.rating,
-          reviews: tutorData.reviews,
-          price: tutorData.price,
-        } 
-      });
-      
-      onClose(); // Close the booking detail modal
+      // Navigate to tutor profile
+      navigation.navigate('TutorProfile', { tutor: tutorData });
     } catch (error) {
       console.error('Error fetching tutor data:', error);
-      Alert.alert('Error', 'Could not load tutor profile');
+      Alert.alert('Error', 'Failed to load tutor profile');
     }
   };
 
-  const handleRatingSubmit = async (rating: number) => {
-    await onRating(booking.id, booking.tutor_id, rating);
-    setShowRatingModal(false);
+  // Add handleCancelBooking function
+  const handleCancelBooking = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: 'Cancelled by student',
+          cancellation_type: 'manual',
+          cancellation_notification_sent: true,
+          cancellation_notification_time: new Date().toISOString()
+        })
+        .eq('id', booking.id);
+
+      if (error) throw error;
+      
+      Alert.alert('Success', 'Booking cancelled successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      Alert.alert('Error', 'Failed to cancel booking');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Add confirmation dialog
+  const confirmCancellation = () => {
+    Alert.alert(
+      'Cancel Booking',
+      'Are you sure you want to cancel this booking?',
+      [
+        { text: 'No', style: 'cancel' },
+        { 
+          text: 'Yes', 
+          style: 'destructive',
+          onPress: handleCancelBooking 
+        }
+      ]
+    );
   };
 
   return (
@@ -248,92 +384,135 @@ const BookingDetailModal = ({ booking, visible, onClose, onRating }: BookingDeta
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Booking Details</Text>
-            <TouchableOpacity onPress={onClose}>
-              <X size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.detailsContainer}>
-            {/* Tutor Section */}
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Tutor</Text>
-              <Text style={styles.tutorName}>{booking.tutors?.name}</Text>
+            <View style={styles.headerActions}>
               <TouchableOpacity 
-                style={styles.viewTutorButton}
-                onPress={handleViewTutor}
+                onPress={() => {
+                  onClose();
+                  navigation.navigate('DisputeResolution', {
+                    bookingId: booking.id,
+                    tutorName: booking.tutors?.name,
+                    userRole: 'student'
+                  });
+                }}
+                style={styles.helpButton}
               >
-                <Text style={styles.viewTutorButtonText}>View Tutor Profile</Text>
+                <HelpCircle size={24} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalClose} onPress={onClose}>
+                <X size={24} color="#333" />
               </TouchableOpacity>
             </View>
+          </View>
 
-            {/* Session Details Section */}
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Session Details</Text>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Date:</Text>
-                <Text style={styles.detailValue}>
-                  {format(new Date(booking.date), 'EEEE, MMMM d, yyyy')}
-                </Text>
+          <ScrollView 
+            style={styles.modalScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.detailsContainer}>
+              {/* Tutor Section */}
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Tutor</Text>
+                <Text style={styles.tutorName}>{booking.tutors?.name}</Text>
+                <TouchableOpacity 
+                  style={styles.viewTutorButton}
+                  onPress={handleViewTutor}
+                >
+                  <Text style={styles.viewTutorButtonText}>View Tutor Profile</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Time:</Text>
-                <Text style={styles.detailValue}>
-                  {format(new Date(`2000-01-01 ${booking.time}`), 'h:mm a')}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Status:</Text>
-                <View style={[styles.statusBadge, styles[`status_${booking.status}`]]}>
-                  <Text style={[styles.statusText, styles[`statusText_${booking.status}`]]}>
-                    {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+
+              {/* Session Details Section */}
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Session Details</Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Date:</Text>
+                  <Text style={styles.detailValue}>
+                    {format(new Date(booking.date), 'EEEE, MMMM d, yyyy')}
                   </Text>
                 </View>
-              </View>
-            </View>
-
-            {/* Payment Details Section */}
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Payment Details</Text>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Amount:</Text>
-                <Text style={styles.price}>${booking.price}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Payment Method:</Text>
-                <Text style={styles.detailValue}>
-                  {booking.payment_method === 'card' ? 'Credit/Debit Card' : 'Cash'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Completion Code Section (for in-progress sessions) */}
-            {booking.status === 'in_progress' && booking.completion_code && (
-              <View style={styles.completionCodeSection}>
-                <Text style={styles.sectionTitle}>Session Completion</Text>
-                <View style={styles.codeContainer}>
-                  <Text style={styles.codeLabel}>Your completion code:</Text>
-                  <Text style={styles.completionCode}>{booking.completion_code}</Text>
-                  <View style={styles.infoBox}>
-                    <AlertCircle size={20} color="#084843" />
-                    <Text style={styles.infoText}>
-                      Share this code with your tutor when the session is complete
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Time:</Text>
+                  <Text style={styles.detailValue}>
+                    {format(new Date(`2000-01-01 ${booking.time}`), 'h:mm a')}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Status:</Text>
+                  <View style={[styles.statusBadge, styles[`status_${booking.status}`]]}>
+                    <Text style={[styles.statusText, styles[`statusText_${booking.status}`]]}>
+                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                     </Text>
                   </View>
                 </View>
               </View>
-            )}
 
-            {/* Rating Button (for completed sessions) */}
-            {booking.status === 'completed' && !booking.student_rating && (
-              <TouchableOpacity 
-                style={styles.rateButton}
-                onPress={() => setShowRatingModal(true)}
-              >
-                <Star size={20} color="#FFD700" />
-                <Text style={styles.rateButtonText}>Rate Tutor</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              {/* Payment Details Section */}
+              <View style={styles.detailSection}>
+                <Text style={styles.sectionTitle}>Payment Details</Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Amount:</Text>
+                  <Text style={styles.price}>${booking.price}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Payment Method:</Text>
+                  <Text style={styles.detailValue}>
+                    {booking.payment_method === 'card' ? 'Credit/Debit Card' : 'Cash'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Cancellation Details Section */}
+              {renderCancellationDetails(booking)}
+
+              {/* Completion Code Section (for in-progress sessions) */}
+              {booking.status === 'in_progress' && booking.completion_code && (
+                <View style={styles.completionCodeSection}>
+                  <Text style={styles.sectionTitle}>Session Completion</Text>
+                  <View style={styles.codeContainer}>
+                    <Text style={styles.codeLabel}>Your completion code:</Text>
+                    <Text style={styles.completionCode}>{booking.completion_code}</Text>
+                    <View style={styles.infoBox}>
+                      <AlertCircle size={20} color="#084843" />
+                      <Text style={styles.infoText}>
+                        Share this code with your tutor when the session is complete
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* Rating Button (for completed sessions) */}
+              {booking.status === 'completed' && !booking.student_rating && (
+                <TouchableOpacity 
+                  style={styles.rateButton}
+                  onPress={() => setShowRatingModal(true)}
+                >
+                  <Star size={20} color="#FFD700" />
+                  <Text style={styles.rateButtonText}>Rate Tutor</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Add Cancel Booking Button */}
+              {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                <View style={styles.cancelButtonContainer}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.cancelButton,
+                      isLoading && styles.disabledButton
+                    ]}
+                    onPress={confirmCancellation}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color="#FFF" size="small" />
+                    ) : (
+                      <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </ScrollView>
         </View>
       </View>
 
@@ -392,10 +571,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    width: '80%',
+    width: '90%',
+    maxHeight: '80%',
     backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
+    borderRadius: 12,
+    paddingTop: 20,
   },
   completionCodeContainer: {
     marginTop: 20,
@@ -428,6 +608,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#333',
+    paddingLeft: Platform.OS === 'ios' ? 16 : 0,
+    
+  },
+  modalClose:{
+    paddingRight: Platform.OS === 'ios' ? 16 : 0,
   },
   detailSection: {
     marginVertical: 8,
@@ -500,7 +685,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   detailsContainer: {
-    gap: 24,
+    gap: 16,
   },
   tutorName: {
     fontSize: 18,
@@ -564,6 +749,91 @@ const styles = StyleSheet.create({
   },
   statusText_cancelled: {
     color: '#D32F2F',
+  },
+  cancellationSection: {
+    marginTop: 16,
+    marginHorizontal: 16,
+    padding: 16,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  reasonRow: {
+    alignItems: 'flex-start',
+    marginTop: 8,
+  },
+  reasonText: {
+    textAlign: 'right',
+    lineHeight: 20,
+  },
+  cancellationType: {
+    color: '#D32F2F',
+    fontWeight: '500',
+  },
+  restorationInfo: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    flex: 2,
+    textAlign: 'right',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  modalScroll: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  cancelButtonContainer: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
+  },
+  cancelButton: {
+    backgroundColor: '#FF4444',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: Platform.OS === 'ios' ? 16 : 0,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  cancelButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  helpButton: {
+    padding: 2,
   },
 });
 

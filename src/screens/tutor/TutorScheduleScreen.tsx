@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useChat } from '../../context/ChatContext';
 import { CompletionCodeModal } from '../../components/booking/CompletionCodeModal';
 import { TutorBookingStatusBadge } from '../../components/booking/TutorBookingStatusBadgeProps';
+import { shouldAutoCancel } from '../../utils/shouldAutoCancel';
 
 interface Booking {
   id: string;
@@ -119,12 +120,42 @@ const TutorScheduleScreen = () => {
         }
       }));
 
+      // Check for bookings that need to be auto-cancelled
+      await checkAndHandleAutoCancellations(bookingsWithProfiles);
+      
       setBookings(bookingsWithProfiles);
       updateMarkedDates(bookingsWithProfiles);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add this inside the TutorScheduleScreen component
+  const checkAndHandleAutoCancellations = async (bookings: Booking[]) => {
+    for (const booking of bookings) {
+      const { shouldCancel, reason } = shouldAutoCancel(booking);
+      
+      if (shouldCancel) {
+        try {
+          const { error } = await supabase
+            .from('bookings')
+            .update({ 
+              status: 'cancelled',
+              cancelled_at: new Date().toISOString(),
+              cancellation_reason: reason,
+              cancellation_type: 'auto',
+              cancellation_notification_sent: true,
+              cancellation_notification_time: new Date().toISOString()
+            })
+            .eq('id', booking.id);
+            
+          if (error) throw error;
+        } catch (error) {
+          console.error('Error auto-cancelling booking:', error);
+        }
+      }
     }
   };
 
@@ -561,12 +592,14 @@ const TutorScheduleScreen = () => {
               <Text style={styles.modalTitle}>Booking Details</Text>
               <View style={styles.headerActions}>
                 <TouchableOpacity 
-                  onPress={() => navigation.navigate('DisputeResolution', {
-                    bookingId: selectedBooking?.id,
-                    studentName: selectedBooking?.student_profile?.name,
-                    bookingDate: selectedBooking?.date,
-                    bookingTime: selectedBooking?.time
-                  })}
+                  onPress={() => {
+                    setModalVisible(false);
+                    navigation.navigate('DisputeResolution', {
+                      bookingId: selectedBooking?.id,
+                      studentName: selectedBooking?.student_profile?.name,
+                      userRole: 'tutor'
+                    });
+                  }}
                   style={styles.emergencyButton}
                 >
                   <AlertTriangle size={20} color="#FF4444" />
