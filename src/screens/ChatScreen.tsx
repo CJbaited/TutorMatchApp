@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Send } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
 import  supabase  from '../services/supabase';
-import { useChat } from '../context/ChatContext';
+import { useChat } from '../contexts/ChatContext';
 
 const ChatScreen = ({ route }) => {
   const { setActiveConversationId } = useChat();

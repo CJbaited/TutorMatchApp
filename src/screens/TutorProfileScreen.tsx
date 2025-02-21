@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Animated, SafeAreaView, Platform, } from 'react-native';
 import { MessageCircle, Calendar, Star, Heart } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
-import { useChat } from '../context/ChatContext';
+import { useChat } from '../contexts/ChatContext';
 import { useFavorites } from '../contexts/FavoritesContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';

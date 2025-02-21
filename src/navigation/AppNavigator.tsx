@@ -33,7 +33,9 @@ import TutorScheduleEditScreen from '../screens/tutor/TutorScheduleEditScreen';
 import StudentProfileScreen from '../screens/tutor/StudentProfileScreen';
 import DisputeResolutionScreen from '../screens/DisputeResolutionScreen';
 import  supabase  from '../services/supabase';
-
+import HelpCenterScreen from '../screens/HelpCenterScreen';
+import FAQCategoryScreen from '../screens/help/FAQCategoryScreen';
+import ArticleDetailScreen from '../screens/help/ArticleDetailScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
@@ -213,6 +215,31 @@ const AppNavigator = () => {
         options={{
           title: 'Help & Support',
           headerShown: true,
+        }}
+      />
+      <Stack.Screen 
+        name="HelpCenter" 
+        component={HelpCenterScreen}
+        options={{
+          headerShown: false,
+          presentation: 'modal'
+        }}
+      />
+      <Stack.Screen 
+        name="FAQCategory" 
+        component={FAQCategoryScreen}
+        options={{
+          headerShown: false,
+          presentation: 'card'
+        }}
+      />
+      <Stack.Screen 
+        name="ArticleDetail" 
+        component={ArticleDetailScreen}
+        options={{
+          headerShown: false,
+          animationEnabled: true,
+          presentation: 'card'
         }}
       />
     </Stack.Navigator>

@@ -35,4 +35,11 @@ export type RootStackParamList = {
   StudentProfile: {
     studentId: string;
   };
+  HelpCenter: undefined;
+  BookingHelp: undefined;
+  SessionHelp: undefined;
+  PaymentHelp: undefined;
+  AccountHelp: undefined;
+  FAQCategory: { category: string };
+  DisputeDetails: { disputeId: string };
 };

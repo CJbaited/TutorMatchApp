@@ -6,7 +6,7 @@ import { Clock, MapPin, Calendar as LucideCalendar, X, MessageCircle, AlertTrian
 import supabase from '../../services/supabase';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
-import { useChat } from '../../context/ChatContext';
+import { useChat } from '../../contexts/ChatContext';
 import { CompletionCodeModal } from '../../components/booking/CompletionCodeModal';
 import { TutorBookingStatusBadge } from '../../components/booking/TutorBookingStatusBadgeProps';
 import { shouldAutoCancel } from '../../utils/shouldAutoCancel';

@@ -30,10 +30,14 @@ const BottomTabNavigator = () => {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#666',
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: {
+          ...styles.tabBar,
+          zIndex: 1, // Lower zIndex for the tab bar
+        },
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarShowLabel: true,
         headerShown: false,
+        
       })}
     >
       <Tab.Screen name="HomeTab" component={HomeScreen} options={{tabBarLabel: "Home"}} />

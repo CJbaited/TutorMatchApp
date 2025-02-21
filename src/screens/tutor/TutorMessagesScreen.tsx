@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 import supabase from '../../services/supabase';
 import * as Notifications from 'expo-notifications';
 import { setBadgeCountSafely, setupNotifications, scheduleLocalNotification } from '../../utils/notifications';
-import { useChat } from '../../context/ChatContext';  // Changed from '../../hooks/useChat'
+import { useChat } from '../../contexts/ChatContext';  
 
 const TutorMessagesScreen = () => {
   const { activeConversationId } = useChat();

@@ -11,7 +11,7 @@ import {
   AppState 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useChat } from '../context/ChatContext';
+import { useChat } from '../contexts/ChatContext';
 import { useNavigation } from '@react-navigation/native';
 import supabase from '../services/supabase';
 import { Swipeable } from 'react-native-gesture-handler';
