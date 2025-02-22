@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Menu, Bell, ChevronRight, Star } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {HomeSkeleton, TutorCardSkeleton} from '../components/HomeSkeleton';
-import DrawerMenu from '../components/DrawerMenu';
 import  supabase  from '../services/supabase';
 import { formatSpecializations } from '../utils/formatSpecializations';
+import { useDrawer } from '../contexts/DrawerContext';
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.7;
@@ -19,7 +19,6 @@ const HomeScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Recommended');
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const [userPreferences, setUserPreferences] = useState<{
     subjects: string[];
     subject_areas: Record<string, string[]>;
@@ -30,6 +29,7 @@ const HomeScreen = () => {
   const [tutors, setTutors] = useState([]);
   const navigation = useNavigation();
   const scrollViewRef = useRef(null);
+  const { setDrawerVisible } = useDrawer();
 
   useEffect(() => {
     fetchUserPreferences();
@@ -234,148 +234,144 @@ const HomeScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <DrawerMenu 
-        isVisible={isDrawerVisible}
-        onClose={() => setIsDrawerVisible(false)}
-      />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => setIsDrawerVisible(true)}
-        >
-          <Menu size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Find Tutors</Text>
-        <TouchableOpacity style={styles.iconButton}>
-          <Bell size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Categories */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesContainer}
-        >
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category}
-              style={[
-                styles.categoryButton,
-                activeCategory === category && styles.activeCategoryButton
-              ]}
-              onPress={() => handleCategoryChange(category)}
-            >
-              <Text style={[
-                styles.categoryText,
-                activeCategory === category && styles.activeCategoryText
-              ]}>
-                {category}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Tutors Section */}
-        {isCategoryLoading ? (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{tutorsByCategory[activeCategory].title}</Text>
-              <TouchableOpacity style={styles.seeAllButton}>
-                <Text style={styles.seeAllText}>See All</Text>
-                <ChevronRight size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {[1, 2, 3].map((item) => (
-                <TutorCardSkeleton key={item} />
-              ))}
-            </ScrollView>
-          </View>
-        ) : (
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{activeCategoryData.title}</Text>
-              <TouchableOpacity 
-                style={styles.seeAllButton}
-                onPress={() => navigation.navigate('TutorList', { 
-                  category: activeCategory,
-                  tutors: activeCategoryData.data // Pass the category-specific tutors
-                })}
-              >
-                <Text style={styles.seeAllText}>See All</Text>
-                <ChevronRight size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.featuredTutorsContainer}
-            >
-              {activeCategoryData.data.map((tutor) => (
-                <Pressable
-                  key={tutor.id}
-                  style={styles.featuredTutorCard}
-                  onPress={() => navigation.navigate('TutorProfile', { tutor })}
-                >
-                  <Image 
-                    source={{ uri: tutor.image_url }}  // Changed from tutor.image
-                    style={styles.featuredTutorImage} 
-                  />
-                  <View style={styles.tutorInfo}>
-                    <Text style={styles.tutorName}>{tutor.name}</Text>
-                    <Text style={styles.tutorAffiliation}>{tutor.affiliation}</Text>
-                    <Text style={styles.tutorSpecialization}>
-                      {formatSpecializations(tutor.specialization)}
-                    </Text>
-                    <View style={styles.ratingContainer}>
-                      <Star size={16} color="#FFD700" />
-                      <Text style={styles.rating}>{tutor.rating}</Text>
-                      <Text style={styles.reviews}>({tutor.reviews} reviews)</Text>
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-              <TouchableOpacity 
-                style={styles.viewAllButton}
-                onPress={() => navigation.navigate('TutorList', { 
-                  category: activeCategory,
-                  tutors: activeCategoryData.data
-                })}
-              >
-                <Text style={styles.viewAllText}>View All</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        )}
-
-        {/* All Tutors */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.allTutorsInfoCard}>
-            <View style={styles.infoCardContent}>
-              <Text style={styles.infoCardTitle}>Browse All Tutors</Text>
-              <Text style={styles.infoCardDescription}>
-                Find the perfect tutor from our extensive network of qualified professionals
-              </Text>
-              <TouchableOpacity 
-                style={styles.infoCardButton}
-                onPress={() => navigation.navigate('Explore')}
-              >
-                <Text style={styles.infoCardButtonText}>Explore</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+    <>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => setDrawerVisible(true)}
+          >
+            <Menu size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Find Tutors</Text>
+          <TouchableOpacity style={styles.iconButton}>
+            <Bell size={24} color="#333" />
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Categories */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoriesContainer}
+          >
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryButton,
+                  activeCategory === category && styles.activeCategoryButton
+                ]}
+                onPress={() => handleCategoryChange(category)}
+              >
+                <Text style={[
+                  styles.categoryText,
+                  activeCategory === category && styles.activeCategoryText
+                ]}>
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Tutors Section */}
+          {isCategoryLoading ? (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{tutorsByCategory[activeCategory].title}</Text>
+                <TouchableOpacity style={styles.seeAllButton}>
+                  <Text style={styles.seeAllText}>See All</Text>
+                  <ChevronRight size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {[1, 2, 3].map((item) => (
+                  <TutorCardSkeleton key={item} />
+                ))}
+              </ScrollView>
+            </View>
+          ) : (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{activeCategoryData.title}</Text>
+                <TouchableOpacity 
+                  style={styles.seeAllButton}
+                  onPress={() => navigation.navigate('TutorList', { 
+                    category: activeCategory,
+                    tutors: activeCategoryData.data // Pass the category-specific tutors
+                  })}
+                >
+                  <Text style={styles.seeAllText}>See All</Text>
+                  <ChevronRight size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.featuredTutorsContainer}
+              >
+                {activeCategoryData.data.map((tutor) => (
+                  <Pressable
+                    key={tutor.id}
+                    style={styles.featuredTutorCard}
+                    onPress={() => navigation.navigate('TutorProfile', { tutor })}
+                  >
+                    <Image 
+                      source={{ uri: tutor.image_url }}  // Changed from tutor.image
+                      style={styles.featuredTutorImage} 
+                    />
+                    <View style={styles.tutorInfo}>
+                      <Text style={styles.tutorName}>{tutor.name}</Text>
+                      <Text style={styles.tutorAffiliation}>{tutor.affiliation}</Text>
+                      <Text style={styles.tutorSpecialization}>
+                        {formatSpecializations(tutor.specialization)}
+                      </Text>
+                      <View style={styles.ratingContainer}>
+                        <Star size={16} color="#FFD700" />
+                        <Text style={styles.rating}>{tutor.rating}</Text>
+                        <Text style={styles.reviews}>({tutor.reviews} reviews)</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+                <TouchableOpacity 
+                  style={styles.viewAllButton}
+                  onPress={() => navigation.navigate('TutorList', { 
+                    category: activeCategory,
+                    tutors: activeCategoryData.data
+                  })}
+                >
+                  <Text style={styles.viewAllText}>View All</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          )}
+
+          {/* All Tutors */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.allTutorsInfoCard}>
+              <View style={styles.infoCardContent}>
+                <Text style={styles.infoCardTitle}>Browse All Tutors</Text>
+                <Text style={styles.infoCardDescription}>
+                  Find the perfect tutor from our extensive network of qualified professionals
+                </Text>
+                <TouchableOpacity 
+                  style={styles.infoCardButton}
+                  onPress={() => navigation.navigate('Explore')}
+                >
+                  <Text style={styles.infoCardButtonText}>Explore</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 };
 

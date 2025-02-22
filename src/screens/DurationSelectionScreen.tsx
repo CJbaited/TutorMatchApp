@@ -37,7 +37,7 @@ const DurationSelectionScreen = () => {
           // Single insert for tutors with all data
           const { error: tutorError } = await supabase
             .from('tutors')
-            .insert([{
+            .upsert([{
               user_id: user.id,
               name: route.params.name,
               specialization: subject,
@@ -60,17 +60,16 @@ const DurationSelectionScreen = () => {
         } else {
           // For students, save in profiles table
           const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([{
-              user_id: user.id,
-              role: 'student',
-              subjects: subject,
-              area: area,
-              location: location,
-              frequency: frequency,
-              duration: duration,
-              created_at: new Date().toISOString()
-            }]);
+          .from('profiles')
+          .update({
+            subjects: subject,
+            area: area,
+            location: location,
+            frequency: frequency,
+            duration: duration,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
 
           if (profileError) throw profileError;
         }

@@ -32,7 +32,7 @@ const BottomTabNavigator = () => {
         tabBarInactiveTintColor: '#666',
         tabBarStyle: {
           ...styles.tabBar,
-          zIndex: 1, // Lower zIndex for the tab bar
+          zIndex: 0, // Ensure bottom tab bar has lower z-index
         },
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarShowLabel: true,

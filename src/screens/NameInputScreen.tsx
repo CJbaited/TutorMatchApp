@@ -20,9 +20,28 @@ const NameInputScreen = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
   
-      // Only create initial profile for students
-      if (role === 'student') {
-        const { error } = await supabase
+      // First check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+  
+      if (existingProfile) {
+        // If profile exists, update it instead
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            name: name.trim(),
+            role,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+  
+        if (updateError) throw updateError;
+      } else {
+        // If no profile exists, create new one
+        const { error: insertError } = await supabase
           .from('profiles')
           .insert([{
             user_id: user.id,
@@ -31,15 +50,16 @@ const NameInputScreen = () => {
             created_at: new Date().toISOString()
           }]);
   
-        if (error) throw error;
+        if (insertError) throw insertError;
       }
   
-      // For tutors, just store the name temporarily
+      // Continue with navigation
       navigation.navigate('SubjectSelection', { 
         role,
-        name: name.trim() // Pass name as parameter
+        name: name.trim()
       });
     } catch (error) {
+      console.error('Profile creation error:', error);
       Alert.alert('Error', error.message);
     }
   };

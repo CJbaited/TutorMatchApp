@@ -8,22 +8,25 @@ import { ChatProvider } from './src/contexts/ChatContext';
 import { FavoritesProvider } from './src/contexts/FavoritesContext';
 import { BookingProvider } from './src/contexts/BookingContext';
 import { FAQProvider } from './src/contexts/FAQContext';
+import { DrawerProvider } from './src/contexts/DrawerContext';
 
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <AuthProvider>
-        <FAQProvider>
-          <FavoritesProvider>
-            <ChatProvider>
-              <BookingProvider>
-                <NavigationContainer>
-                  <AppNavigator />
-                </NavigationContainer>
-              </BookingProvider>
-            </ChatProvider>
-          </FavoritesProvider>
-        </FAQProvider>
+        <DrawerProvider>
+          <FAQProvider>
+            <FavoritesProvider>
+              <ChatProvider>
+                <BookingProvider>
+                  <NavigationContainer>
+                    <AppNavigator />
+                  </NavigationContainer>
+                </BookingProvider>
+              </ChatProvider>
+            </FavoritesProvider>
+          </FAQProvider>
+        </DrawerProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );

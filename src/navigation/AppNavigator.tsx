@@ -36,213 +36,223 @@ import  supabase  from '../services/supabase';
 import HelpCenterScreen from '../screens/HelpCenterScreen';
 import FAQCategoryScreen from '../screens/help/FAQCategoryScreen';
 import ArticleDetailScreen from '../screens/help/ArticleDetailScreen';
+import DrawerMenu from '../components/DrawerMenu';
+import { useDrawer } from '../contexts/DrawerContext';
+
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { user, role, loading } = useAuth();
+  const { isDrawerVisible, setDrawerVisible } = useDrawer();
 
   if (loading) {
     return <LoadingScreen />;
   }
 
   return (
-    <Stack.Navigator 
-      initialRouteName={
-        user 
-          ? (role === 'tutor' ? 'TutorDashboard' : 'MainApp')
-          : 'Welcome'
-      }
-    >
-      <Stack.Screen 
-        name="Welcome" 
-        component={WelcomeScreen}
-        options={{ headerShown: false }} 
-      />
-      <Stack.Screen 
-        name="Login" 
-        component={LoginScreen}
-        options={{ headerShown: false }} 
-      />
-      <Stack.Screen 
-        name="SignUp" 
-        component={SignUpScreen}
-        options={{ headerShown: false }} 
-      />
-      
-      {/* Onboarding Screens */}
-      <Stack.Screen name="NameInput" component={NameInputScreen} options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="RoleSelection" 
-        component={RoleSelectionScreen}
-        options={{ headerShown: false }} 
-      />
-      <Stack.Screen name="SubjectSelection" component={SubjectSelectionScreen} />
-      <Stack.Screen name="AreaSelection" component={AreaSelectionScreen} />
-      <Stack.Screen name="FormatSelection" component={FormatSelectionScreen} />
-      <Stack.Screen name="LocationSelection" component={LocationSelectionScreen} />
-      <Stack.Screen name="FrequencySelection" component={FrequencySelectionScreen} />
-      <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
-      <Stack.Screen 
-        name="RegistrationComplete" 
-        component={RegistrationCompleteScreen} 
-        options={{ headerShown: false }}
-      />
+    <>
+      <Stack.Navigator 
+        initialRouteName={
+          user 
+            ? (role === 'tutor' ? 'TutorDashboard' : 'MainApp')
+            : 'Welcome'
+        }
+      >
+        <Stack.Screen 
+          name="Welcome" 
+          component={WelcomeScreen}
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="Login" 
+          component={LoginScreen}
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="SignUp" 
+          component={SignUpScreen}
+          options={{ headerShown: false }} 
+        />
+        
+        {/* Onboarding Screens */}
+        <Stack.Screen name="NameInput" component={NameInputScreen} options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="RoleSelection" 
+          component={RoleSelectionScreen}
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen name="SubjectSelection" component={SubjectSelectionScreen} />
+        <Stack.Screen name="AreaSelection" component={AreaSelectionScreen} />
+        <Stack.Screen name="FormatSelection" component={FormatSelectionScreen} />
+        <Stack.Screen name="LocationSelection" component={LocationSelectionScreen} />
+        <Stack.Screen name="FrequencySelection" component={FrequencySelectionScreen} />
+        <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
+        <Stack.Screen 
+          name="RegistrationComplete" 
+          component={RegistrationCompleteScreen} 
+          options={{ headerShown: false }}
+        />
 
-      {/* Tutor Screens */}
-      <Stack.Screen 
-        name="TutorDashboard" 
-        component={TutorTabNavigator} 
-        options={{ headerShown: false }}
+        {/* Tutor Screens */}
+        <Stack.Screen 
+          name="TutorDashboard" 
+          component={TutorTabNavigator} 
+          options={{ headerShown: false }}
+        />
+        
+        {/* Main App Screens */}
+        <Stack.Screen 
+          name="MainApp" 
+          component={BottomTabNavigator} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen name="TutorProfile" component={TutorProfileScreen} options={{headerShown: false, presentation: 'modal'}}/>
+        <Stack.Screen 
+          name="Chat" 
+          component={ChatScreen}
+          options={({ route }) => ({
+            title: route.params?.name || 'Chat',
+            headerShadowVisible: false,
+          })}
+        />
+        <Stack.Screen 
+          name="TutorList" 
+          component={TutorList}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Settings" 
+          component={SettingsScreen}
+          options={{
+            headerShadowVisible: false,
+            headerTitle: 'Settings',
+            headerStyle: {
+              backgroundColor: '#F8F9FA',
+            }
+          }}
+        />
+        <Stack.Screen 
+          name="Profile" 
+          component={ProfileScreen}
+          options={{
+            headerShadowVisible: false,
+            headerTitle: 'Profile',
+            headerStyle: {
+              backgroundColor: '#F8F9FA',
+            }
+          }}
+        />
+        <Stack.Screen 
+          name="Preferences" 
+          component={PreferencesScreen}
+          options={{
+            headerTitle: 'My Preferences',
+            headerShadowVisible: false,
+            headerStyle: {
+              backgroundColor: '#F8F9FA',
+            },
+          }}
+        />
+        <Stack.Screen 
+          name="Categories" 
+          component={CategoryScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="BookingCalendar" 
+          component={BookingCalendarScreen}
+          options={{ title: 'Select Time' }}
+        />
+        <Stack.Screen 
+          name="Payment" 
+          component={PaymentScreen}
+          options={{ title: 'Payment' }}
+        />
+        <Stack.Screen 
+          name="BookingConfirmation" 
+          component={BookingConfirmationScreen}
+          options={{ title: 'Confirm Booking' }}
+        />
+        <Stack.Screen 
+          name="BookingSuccess" 
+          component={BookingSuccessScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Bookings" 
+          component={BookingsScreen}
+          options={{
+            headerTitle: 'My Bookings',
+            headerShadowVisible: false,
+            headerStyle: {
+              backgroundColor: '#F8F9FA',
+            }
+          }}
+        />
+        <Stack.Screen 
+          name="TutorProfileEdit"
+          component={TutorProfileEditScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Edit Profile',
+            headerShadowVisible: false
+          }}
+        />
+        <Stack.Screen
+          name="TutorScheduleEdit"
+          component={TutorScheduleEditScreen}
+          options={{
+            headerShown: true,
+            headerTitle: "Edit Schedule",
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen 
+          name="StudentProfile" 
+          component={StudentProfileScreen} 
+          options={{
+            headerShown: false
+          }}
+        />
+        <Stack.Screen 
+          name="DisputeResolution" 
+          component={DisputeResolutionScreen}
+          options={{
+            title: 'Help & Support',
+            headerShown: true,
+          }}
+        />
+        <Stack.Screen 
+          name="HelpCenter" 
+          component={HelpCenterScreen}
+          options={{
+            headerShown: false,
+            presentation: 'modal'
+          }}
+        />
+        <Stack.Screen 
+          name="FAQCategory" 
+          component={FAQCategoryScreen}
+          options={{
+            headerShown: false,
+            presentation: 'card'
+          }}
+        />
+        <Stack.Screen 
+          name="ArticleDetail" 
+          component={ArticleDetailScreen}
+          options={{
+            headerShown: false,
+            animationEnabled: true,
+            presentation: 'card'
+          }}
+        />
+      </Stack.Navigator>
+      <DrawerMenu 
+        isVisible={isDrawerVisible}
+        onClose={() => setDrawerVisible(false)}
       />
-      
-      {/* Main App Screens */}
-      <Stack.Screen 
-        name="MainApp" 
-        component={BottomTabNavigator} 
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen name="TutorProfile" component={TutorProfileScreen} options={{headerShown: false, presentation: 'modal'}}/>
-      <Stack.Screen 
-        name="Chat" 
-        component={ChatScreen}
-        options={({ route }) => ({
-          title: route.params?.name || 'Chat',
-          headerShadowVisible: false,
-        })}
-      />
-      <Stack.Screen 
-        name="TutorList" 
-        component={TutorList}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen 
-        name="Settings" 
-        component={SettingsScreen}
-        options={{
-          headerShadowVisible: false,
-          headerTitle: 'Settings',
-          headerStyle: {
-            backgroundColor: '#F8F9FA',
-          }
-        }}
-      />
-      <Stack.Screen 
-        name="Profile" 
-        component={ProfileScreen}
-        options={{
-          headerShadowVisible: false,
-          headerTitle: 'Profile',
-          headerStyle: {
-            backgroundColor: '#F8F9FA',
-          }
-        }}
-      />
-      <Stack.Screen 
-        name="Preferences" 
-        component={PreferencesScreen}
-        options={{
-          headerTitle: 'My Preferences',
-          headerShadowVisible: false,
-          headerStyle: {
-            backgroundColor: '#F8F9FA',
-          },
-        }}
-      />
-      <Stack.Screen 
-        name="Categories" 
-        component={CategoryScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen 
-        name="BookingCalendar" 
-        component={BookingCalendarScreen}
-        options={{ title: 'Select Time' }}
-      />
-      <Stack.Screen 
-        name="Payment" 
-        component={PaymentScreen}
-        options={{ title: 'Payment' }}
-      />
-      <Stack.Screen 
-        name="BookingConfirmation" 
-        component={BookingConfirmationScreen}
-        options={{ title: 'Confirm Booking' }}
-      />
-      <Stack.Screen 
-        name="BookingSuccess" 
-        component={BookingSuccessScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen 
-        name="Bookings" 
-        component={BookingsScreen}
-        options={{
-          headerTitle: 'My Bookings',
-          headerShadowVisible: false,
-          headerStyle: {
-            backgroundColor: '#F8F9FA',
-          }
-        }}
-      />
-      <Stack.Screen 
-        name="TutorProfileEdit"
-        component={TutorProfileEditScreen}
-        options={{
-          headerShown: true,
-          headerTitle: 'Edit Profile',
-          headerShadowVisible: false
-        }}
-      />
-      <Stack.Screen
-        name="TutorScheduleEdit"
-        component={TutorScheduleEditScreen}
-        options={{
-          headerShown: true,
-          headerTitle: "Edit Schedule",
-          headerShadowVisible: false,
-        }}
-      />
-      <Stack.Screen 
-        name="StudentProfile" 
-        component={StudentProfileScreen} 
-        options={{
-          headerShown: false
-        }}
-      />
-      <Stack.Screen 
-        name="DisputeResolution" 
-        component={DisputeResolutionScreen}
-        options={{
-          title: 'Help & Support',
-          headerShown: true,
-        }}
-      />
-      <Stack.Screen 
-        name="HelpCenter" 
-        component={HelpCenterScreen}
-        options={{
-          headerShown: false,
-          presentation: 'modal'
-        }}
-      />
-      <Stack.Screen 
-        name="FAQCategory" 
-        component={FAQCategoryScreen}
-        options={{
-          headerShown: false,
-          presentation: 'card'
-        }}
-      />
-      <Stack.Screen 
-        name="ArticleDetail" 
-        component={ArticleDetailScreen}
-        options={{
-          headerShown: false,
-          animationEnabled: true,
-          presentation: 'card'
-        }}
-      />
-    </Stack.Navigator>
+    </>
   );
 };
 
