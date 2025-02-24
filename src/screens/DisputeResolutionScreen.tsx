@@ -20,14 +20,20 @@ const DisputeResolutionScreen = () => {
 
     setIsLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+  
       const { error } = await supabase
-        .from('disputes')
+        .from('Dispute')
         .insert({
           booking_id: bookingId,
           issue_type: issue,
           description,
           status: 'pending',
-          created_by_role: userRole
+          created_by_role: userRole,
+          user_id: user.id 
         });
 
       if (error) throw error;

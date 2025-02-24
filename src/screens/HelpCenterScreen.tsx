@@ -81,7 +81,7 @@ const HelpCenterScreen = () => {
       if (!user) return;
 
       const { data } = await supabase
-        .from('disputes')
+        .from('Dispute')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
