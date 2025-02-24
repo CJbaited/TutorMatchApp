@@ -210,12 +210,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ isVisible, onClose }) => {
         <Pressable style={styles.overlayPressable} onPress={handleClose} />
       </Animated.View>
 
-      {/* Drawer with horizontal PanGesture */}
       <PanGestureHandler
         onGestureEvent={gestureHandler}
-        // Allow the drawer gesture only if user moves horizontally past ±20px
-        // If user moves vertically more than ±20px, this gesture fails,
-        // letting the ScrollView handle vertical scroll.
         activeOffsetX={[-20, 20]}
         failOffsetY={[-20, 20]}
       >
@@ -230,7 +226,26 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ isVisible, onClose }) => {
               <X size={24} color="#333" />
             </TouchableOpacity>
 
-            {/* Scrollable area */}
+            {/* Fixed Profile Header */}
+            <LinearGradient
+              colors={['#084843', '#0a5c55']}
+              style={styles.profileSection}
+            >
+              <Image
+                source={
+                  profileImage
+                    ? { uri: profileImage }
+                    : require('../assets/placeholder-person.jpg')
+                }
+                style={styles.profileImage}
+                onError={() => setProfileImage(null)}
+                defaultSource={require('../assets/placeholder-person.jpg')}
+              />
+              <Text style={styles.profileName}>{userName}</Text>
+              <Text style={styles.profileEmail}>{userEmail}</Text>
+            </LinearGradient>
+
+            {/* Scrollable Menu Items */}
             <ScrollView
               style={styles.scrollView}
               contentContainerStyle={styles.scrollContent}
@@ -238,26 +253,6 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ isVisible, onClose }) => {
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled={true}
             >
-              {/* Profile Header */}
-              <LinearGradient
-                colors={['#084843', '#0a5c55']}
-                style={styles.profileSection}
-              >
-                <Image
-                  source={
-                    profileImage
-                      ? { uri: profileImage }
-                      : require('../assets/placeholder-person.jpg')
-                  }
-                  style={styles.profileImage}
-                  onError={() => setProfileImage(null)}
-                  defaultSource={require('../assets/placeholder-person.jpg')}
-                />
-                <Text style={styles.profileName}>{userName}</Text>
-                <Text style={styles.profileEmail}>{userEmail}</Text>
-              </LinearGradient>
-
-              {/* Menu Sections */}
               {menuItems.map((section, index) => (
                 <View key={index} style={styles.section}>
                   <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -357,6 +352,7 @@ const styles = StyleSheet.create({
   // Scrollable content
   scrollView: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
     // Ensures we can scroll if content is taller than screen
@@ -365,9 +361,11 @@ const styles = StyleSheet.create({
 
   // Profile header at top
   profileSection: {
-    padding: 24,
     paddingTop: Platform.OS === 'ios' ? 80 : (StatusBar.currentHeight || 0) + 40,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
     alignItems: 'center',
+    backgroundColor: 'transparent', // Important to show gradient
   },
   profileImage: {
     width: 80,

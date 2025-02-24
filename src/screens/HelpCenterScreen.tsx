@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   contactTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     color: '#333',
   },
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   },
   emailButtonText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '500',
     marginLeft: 8,
   },

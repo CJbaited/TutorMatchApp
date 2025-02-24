@@ -227,7 +227,7 @@ const AppNavigator = () => {
           component={HelpCenterScreen}
           options={{
             headerShown: false,
-            presentation: 'modal'
+            presentation: 'card'
           }}
         />
         <Stack.Screen 
