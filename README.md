@@ -60,8 +60,8 @@ A cutting-edge matchmaking platform connecting students with tutors, designed fo
 ### Installation
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/yourusername/student-tutor-match-app.git
-   cd student-tutor-match-app
+   git clone https://github.com/CJbaited/TutorMatchApp.git
+   cd TutorMatchApp
 
 2. **Install Dependencies:**
    ```bash
