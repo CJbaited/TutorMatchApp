@@ -1,19 +1,44 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { 
-  User, 
-  Bell, 
-  CreditCard, 
-  Shield, 
-  HelpCircle, 
-  LogOut 
-} from 'lucide-react-native';
+import { User, CreditCard, HelpCircle, LogOut, Settings } from 'lucide-react-native';
 import supabase from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { colors } from '../../theme/Theme';
+
+interface TutorProfile {
+  name: string;
+  image_url: string;
+}
 
 const TutorSettingsScreen = ({ navigation }) => {
   const { signOut } = useAuth();
+  const [profile, setProfile] = useState<TutorProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('tutors')
+        .select('name, image_url')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -37,17 +62,26 @@ const TutorSettingsScreen = ({ navigation }) => {
       <ScrollView style={styles.content}>
         <View style={styles.profileSection}>
           <View style={styles.profileImage}>
-            <User size={40} color="#084843" />
+            {profile?.image_url ? (
+              <Image 
+                source={{ uri: profile.image_url }} 
+                style={styles.profileImageStyle}
+              />
+            ) : (
+              <User size={40} color={colors.primary} />
+            )}
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>John Doe</Text>
-            <Text style={styles.profileEmail}>john.doe@example.com</Text>
+            <Text style={styles.profileName}> Hello, {profile?.name || 'Loading...'}</Text>
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('TutorProfileEdit')}
+          >
             <User size={20} color="#666" />
             <Text style={styles.settingText}>Edit Profile</Text>
           </TouchableOpacity>
@@ -58,28 +92,20 @@ const TutorSettingsScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
-          <View style={styles.settingItem}>
-            <Bell size={20} color="#666" />
-            <Text style={styles.settingText}>Notifications</Text>
-            <Switch 
-              value={true}
-              onValueChange={() => {}}
-              trackColor={{ false: '#D1D1D1', true: '#084843' }}
-              thumbColor="#FFF"
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
-          <TouchableOpacity style={styles.settingItem}>
+          <Text style={styles.sectionTitle}>General</Text>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Settings size={20} color="#666" />
+            <Text style={styles.settingText}>App Settings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('HelpCenter')}
+            >
             <HelpCircle size={20} color="#666" />
             <Text style={styles.settingText}>Help Center</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
-            <Shield size={20} color="#666" />
-            <Text style={styles.settingText}>Privacy Policy</Text>
           </TouchableOpacity>
         </View>
 
@@ -126,18 +152,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  profileImageStyle: {
+    width: '100%',
+    height: '100%',
   },
   profileInfo: {
     marginLeft: 16,
+    flex: 1,
   },
   profileName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-  },
-  profileEmail: {
-    fontSize: 14,
-    color: '#666',
   },
   section: {
     backgroundColor: '#FFF',
@@ -173,7 +201,7 @@ const styles = StyleSheet.create({
   signOutText: {
     fontSize: 16,
     color: '#FF4444',
-    marginLeft: 12
+    marginLeft: 12,
   },
 });
 

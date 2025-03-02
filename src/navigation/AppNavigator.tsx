@@ -81,12 +81,12 @@ const AppNavigator = () => {
           component={RoleSelectionScreen}
           options={{ headerShown: false }} 
         />
-        <Stack.Screen name="SubjectSelection" component={SubjectSelectionScreen} />
-        <Stack.Screen name="AreaSelection" component={AreaSelectionScreen} />
-        <Stack.Screen name="FormatSelection" component={FormatSelectionScreen} />
-        <Stack.Screen name="LocationSelection" component={LocationSelectionScreen} />
-        <Stack.Screen name="FrequencySelection" component={FrequencySelectionScreen} />
-        <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} />
+        <Stack.Screen name="SubjectSelection" component={SubjectSelectionScreen} options={{headerShown: false}} />
+        <Stack.Screen name="AreaSelection" component={AreaSelectionScreen} options={{headerShown: false}} />
+        <Stack.Screen name="FormatSelection" component={FormatSelectionScreen} options={{headerShown: false}} />
+        <Stack.Screen name="LocationSelection" component={LocationSelectionScreen} options={{headerShown: false}} />
+        <Stack.Screen name="FrequencySelection" component={FrequencySelectionScreen} options={{headerShown: false}} />
+        <Stack.Screen name="DurationSelection" component={DurationSelectionScreen} options={{headerShown: false}} />
         <Stack.Screen 
           name="RegistrationComplete" 
           component={RegistrationCompleteScreen} 

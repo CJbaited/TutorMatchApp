@@ -8,7 +8,17 @@ export type RootStackParamList = {
   FormatSelection: { role: string; name: string; subject: string[]; area: string };
   LocationSelection: { role: string; name: string; subject: string[]; area: string; format: string };
   FrequencySelection: { role: string; name: string; subject: string[]; area: string; format: string; location?: string };
-  DurationSelection: { role: string; name: string; subject: string[]; area: string; format: string; location?: string; frequency: string };
+  DurationSelection: {
+    role: string;
+    name: string;
+    subject: string[];
+    area: string;
+    format: 'online' | 'face_to_face' | 'hybrid';
+    location: string;
+    latitude: number | null;
+    longitude: number | null;
+    frequency: string;
+  };
   RegistrationComplete: { role: string };
   Home: { role: string };
   DevHome: undefined;

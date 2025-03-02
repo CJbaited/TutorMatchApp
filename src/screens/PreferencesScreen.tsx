@@ -7,19 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check } from 'lucide-react-native';
 import { colors } from '../theme/Theme';
 import supabase from '../services/supabase';
-import Slider from '@react-native-community/slider'; // Add this import
+import Slider from '@react-native-community/slider';
+import { subjects, subjectAreas } from '../config/subjectsConfig';
 
-const subjects = ['English', 'Mathematics', 'Biology', 'Physics', 'Chemistry', 'Chinese Language', 'Test Preparation', 'Supplementary'];
-const subjectAreas = {
-  Mathematics: ["Algebra", "Calculus", "Geometry", "Statistics"],
-  English: ["Grammar", "Vocabulary", "Reading Comprehension", "Writing", "Speaking", "Listening"],
-  Physics: ["Mechanics", "Electromagnetism", "Quantum Physics"],
-  Chemistry: ["Organic", "Inorganic", "Physical Chemistry"],
-  Biology: ["Anatomy", "Botany", "Zoology"],
-  "Chinese Language": ["Literature", "Composition", "Classical Chinese", "Modern Chinese"],
-  "Test Preparation": ["Exam Strategies", "Time Management", "Problem Solving", "TOEFL", "IELTS", "TOEIC" ,"SAT", "ACT"],
-  Supplementary: ["Coding", "Music", "Art", "Public Speaking"]
-};
+
 const teachingFormats = ['online', 'face_to_face', 'hybrid'];
 const frequencies = [
   { label: '1x per week', value: '1' },

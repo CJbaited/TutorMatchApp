@@ -11,17 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import supabase from '../services/supabase';
+import { subjects } from '../config/subjectsConfig';
 
-const subjects = [
-  'English',
-  'Mathematics', 
-  'Biology',
-  'Physics',
-  'Chemistry',
-  'Chinese Language',
-  'Test Preparation',
-  'Supplementary'
-];
 
 const CategoryScreen = () => {
   const navigation = useNavigation();

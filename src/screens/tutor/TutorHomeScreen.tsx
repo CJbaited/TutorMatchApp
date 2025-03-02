@@ -5,7 +5,7 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  Platform 
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, TrendingUp, Users, DollarSign } from 'lucide-react-native';
@@ -13,6 +13,9 @@ import supabase from '../../services/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { analyticsService } from '../../services/analyticsService';
+import { colors } from '../../theme/Theme';
+import StatBox from '../../components/StatBox';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -20,17 +23,23 @@ const TutorHomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const [stats, setStats] = useState({
     weeklyEarnings: 0,
-    totalStudents: 0,
-    upcomingLessons: 0,
-    rating: 0,
+    activeStudents: 0
   });
 
   useEffect(() => {
-    fetchTutorStats();
+    fetchHomeStats();
   }, []);
 
-  const fetchTutorStats = async () => {
-    // Implementation will come later
+  const fetchHomeStats = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const stats = await analyticsService.getWeeklyStats(user.id);
+      setStats(stats);
+    } catch (error) {
+      console.error('Error fetching home stats:', error);
+    }
   };
 
   return (
@@ -44,18 +53,17 @@ const TutorHomeScreen = () => {
 
       <ScrollView style={styles.content}>
         {/* Weekly Stats */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statsCard}>
-            <DollarSign size={24} color="#084843" />
-            <Text style={styles.statsAmount}>${stats.weeklyEarnings}</Text>
-            <Text style={styles.statsLabel}>Weekly Earnings</Text>
-          </View>
-
-          <View style={styles.statsCard}>
-            <Users size={24} color="#084843" />
-            <Text style={styles.statsAmount}>{stats.totalStudents}</Text>
-            <Text style={styles.statsLabel}>Active Students</Text>
-          </View>
+        <View style={styles.statsContainer}>
+          <StatBox
+            title="Weekly Earnings"
+            value={`$${stats.weeklyEarnings}`}
+            icon="dollar-sign"
+          />
+          <StatBox
+            title="Active Students"
+            value={stats.activeStudents.toString()}
+            icon="users"
+          />
         </View>
 
         {/* Promotional Tools */}
@@ -87,10 +95,16 @@ const TutorHomeScreen = () => {
             >
               <Text style={styles.actionButtonText}>Update Schedule</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('Messages')}
+              >
               <Text style={styles.actionButtonText}>Message Students</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('Analytics')}
+              >
               <Text style={styles.actionButtonText}>View Analytics</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -132,7 +146,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  statsGrid: {
+  statsContainer: {
     flexDirection: 'row',
     gap: 16,
     marginBottom: 24,

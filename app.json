@@ -29,6 +29,12 @@
           "color": "#084843",
           "sounds": ["./assets/notification-sound.wav"]
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "permission": "Allow TutorMatch to access your photos."
+        }
       ]
     ]
   }
